@@ -1,0 +1,44 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: postgres-db
+spec:
+  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-15.5-1
+  postgresVersion: 15
+  
+  instances:
+  - name: instance1
+    replicas: 1
+    dataVolumeClaimSpec:
+      accessModes:
+      - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: 1Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  backups:
+    pgbackrest:
+      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.47-2
+      repos:
+      - name: repo1
+        volume:
+          volumeClaimSpec:
+            accessModes:
+            - "ReadWriteOnce"
+            resources:
+              requests:
+                storage: 1Gi
+
+  users:
+  - name: pg-todoable-user
+    databases:
+    - pg-todoable-db
+    options: "CREATEDB"
+
