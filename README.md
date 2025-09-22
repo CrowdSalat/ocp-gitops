@@ -13,7 +13,7 @@ GitOps repository for OpenShift manifests using ArgoCD and ApplicationSets.
 
 1. **Bootstrap ArgoCD:**
    ```bash
-   oc apply bootstrap/
+   oc apply -f bootstrap/
    ```
 
 ## How It Works
@@ -29,4 +29,4 @@ GitOps repository for OpenShift manifests using ArgoCD and ApplicationSets.
 
 ## Repository URL
 
-Currently configured for: `git@github.com:CrowdSalat/ocp-gitops.git`
+Currently configured for: `https://github.com/CrowdSalat/ocp-gitops.git`

@@ -6,7 +6,7 @@ metadata:
 spec:
   generators:
   - git:
-      repoURL: git@github.com:CrowdSalat/ocp-gitops.git
+      repoURL: https://github.com/CrowdSalat/ocp-gitops.git
       revision: HEAD
       directories:
       - path: applications/*
@@ -16,7 +16,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: git@github.com:CrowdSalat/ocp-gitops.git
+        repoURL: https://github.com/CrowdSalat/ocp-gitops.git
         targetRevision: HEAD
         path: '{{path}}'
       destination:
