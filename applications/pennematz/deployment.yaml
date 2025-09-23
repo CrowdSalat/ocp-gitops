@@ -21,6 +21,7 @@ spec:
       containers:
         - name: pennematz
           image: 'image-registry.openshift-image-registry.svc:5000/app-pennematz/pennematz:1.0.0-SNAPSHOT'
+          imagePullPolicy: Always
           env:
           - name: DB_URL
             valueFrom:

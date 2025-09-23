@@ -21,6 +21,7 @@ spec:
       containers:
         - name: todoable-hexagonal-edition
           image: 'image-registry.openshift-image-registry.svc:5000/app-todoable/todoable-hexagonal-edition:1.0.0-SNAPSHOT'
+          imagePullPolicy: Always
           envFrom:
           - secretRef:
               name: postgres-db-pguser-pg-todoable-user
