@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pennematz
+  namespace: app-pennematz
+  labels:
+    app.kubernetes.io/name: pennematz
+spec:
+  host: pennematz.apps.ocp.weyrich.dev
+  to:
+    kind: Service
+    name: pennematz
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
