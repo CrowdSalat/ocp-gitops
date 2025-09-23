@@ -21,6 +21,12 @@ spec:
       containers:
         - name: pennematz
           image: 'image-registry.openshift-image-registry.svc:5000/app-pennematz/pennematz:1.0.0-SNAPSHOT'
+          env:
+          - name: DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: postgres-db-pguser-pg-pennematz-user
+                key: jdbc-uri
           ports:
             - containerPort: 8080
               name: http
