@@ -39,4 +39,7 @@ spec:
     databases:
     - pg-todoable-db
     options: "CREATEDB"
-
+  - name: pg-pennematz-user
+    databases:
+    - pg-pennematz-db
+    options: "CREATEDB"
