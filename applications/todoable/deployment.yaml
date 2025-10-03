@@ -25,6 +25,12 @@ spec:
           envFrom:
           - secretRef:
               name: postgres-db-pguser-pg-todoable-user
+          env:
+          - name: quarkus.datasource.jdbc.url
+            valueFrom:
+              secretKeyRef:
+                name: postgres-db-pguser-pg-todoable-user
+                key: jdbc-uri
           ports:
             - containerPort: 8080
               name: http
