@@ -44,11 +44,15 @@ spec:
             httpGet:
               path: /q/health/live
               port: http
-            initialDelaySeconds: 1
-            periodSeconds: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /q/health/ready
               port: http
-            initialDelaySeconds: 1
+            initialDelaySeconds: 10
             periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
