@@ -34,6 +34,8 @@ spec:
               secretKeyRef:
                 name: postgres-db-pguser-pg-todoable-user
                 key: jdbc-uri
+          - name: QUARKUS_LOG_LEVEL
+            value: DEBUG
           ports:
             - containerPort: 8080
               name: http
