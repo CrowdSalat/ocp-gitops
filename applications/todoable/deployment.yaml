@@ -22,9 +22,6 @@ spec:
         - name: todoable-hexagonal-edition
           image: 'image-registry.openshift-image-registry.svc:5000/app-todoable/todoable-hexagonal-edition:1.0.0-SNAPSHOT'
           imagePullPolicy: Always
-          envFrom:
-          - secretRef:
-              name: postgres-db-pguser-pg-todoable-user
           env:
           - name: QUARKUS_HIBERNATE_ORM_SCHEMA_MANAGEMENT_STRATEGY
             value: drop-and-create
