@@ -30,7 +30,7 @@ spec:
             value: drop-and-create
           - name: QUARKUS_HIBERNATE_ORM_DATABASE_DEFAULT_SCHEMA
             value: todoable
-          - name: QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION_CREATE_SCHEMAS
+          - name: QUARKUS_HIBERNATE_ORM_SCHEMA_MANAGEMENT_CREATE_SCHEMAS
             value: "true"
           - name: QUARKUS_DATASOURCE_JDBC_URL
             valueFrom:
