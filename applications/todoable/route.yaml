@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: todoable-hexagonal-edition
+  namespace: app-todoable
+  labels:
+    app.kubernetes.io/name: todoable-hexagonal-edition
+    app.kubernetes.io/version: 1.0.0-SNAPSHOT
+spec:
+  to:
+    kind: Service
+    name: todoable-hexagonal-edition
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
