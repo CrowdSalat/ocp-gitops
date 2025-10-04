@@ -4,8 +4,8 @@ metadata:
   name: keycloak-operator
   namespace: app-keycloak
 spec:
-  channel: stable
-  name: keycloak-operator
+  channel: stable-v26.2
+  name: rhbk-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
