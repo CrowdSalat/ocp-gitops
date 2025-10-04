@@ -43,3 +43,7 @@ spec:
     databases:
     - pg-pennematz-db
     options: "CREATEDB"
+  - name: pg-keycloak-user
+    databases:
+    - pg-keycloak-db
+    options: "CREATEDB"
