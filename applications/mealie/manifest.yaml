@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mealie
+  labels:
+    app: mealie
+  namespace: app-mealie
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: mealie
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: mealie
+    spec:
+      containers:
+      - image: ghcr.io/mealie-recipes/mealie:v3.1.2
+        imagePullPolicy: IfNotPresent
+        name: mealie
+        env:
+          - name: BASE_URL
+            value: 'https://mealie-app-mealie.apps.ocp.weyrich.dev/'
+        volumeMounts:
+          - name: mealie
+            mountPath: /app/data
+      restartPolicy: Always
+      volumes:
+        - name: mealie
+          persistentVolumeClaim:
+            claimName: mealie
