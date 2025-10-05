@@ -6,7 +6,7 @@ metadata:
   labels:
     app: mealie
 spec:
-  host: mealie-app-mealie.apps.ocp.weyrich.dev
+  host: meali.apps.ocp.weyrich.dev
   to:
     kind: Service
     name: mealie
