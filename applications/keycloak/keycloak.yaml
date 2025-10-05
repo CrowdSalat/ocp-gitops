@@ -1,0 +1,39 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: keycloak
+  namespace: app-keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/version: "26.2"
+spec:
+  # Database configuration
+  db:
+    vendor: postgres
+    host: postgres-db-primary.app-postgres-db.svc
+    port: 5432
+    database: pg-keycloak-db
+    usernameSecret:
+      name: postgres-db-pguser-pg-keycloak-user
+      key: user
+    passwordSecret:
+      name: postgres-db-pguser-pg-keycloak-user
+      key: password
+  
+  # Hostname configuration
+  hostname: keycloak.apps.ocp.weyrich.dev 
+  
+  # TLS configuration
+  tlsSecret: 
+  
+  # Instance configuration
+  instances: 1
+  
+  # Resources
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
