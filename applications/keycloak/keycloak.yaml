@@ -21,7 +21,8 @@ spec:
       key: password
   
   # Hostname configuration
-  hostname: keycloak.apps.ocp.weyrich.dev 
+  hostname: 
+    hostname: keycloak.apps.ocp.weyrich.dev 
   
   # TLS configuration
   tlsSecret: 
