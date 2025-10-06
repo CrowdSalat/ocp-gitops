@@ -22,6 +22,7 @@ spec:
   
   hostname: 
     hostname: keycloak.apps.ocp.weyrich.dev 
+    hostname-admin: keycloak-admin.internal 
   
   http:
     tlsSecret: keycloak-cert
