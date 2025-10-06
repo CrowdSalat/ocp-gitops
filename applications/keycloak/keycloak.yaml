@@ -22,7 +22,8 @@ spec:
   hostname: 
     hostname: keycloak.apps.ocp.weyrich.dev 
   
-  tlsSecret: keycloak-cert
+  http:
+    tlsSecret: keycloak-cert
   
   instances: 1
   
