@@ -7,7 +7,6 @@ metadata:
     app.kubernetes.io/name: keycloak
     app.kubernetes.io/version: "26.2"
 spec:
-  # Database configuration
   db:
     vendor: postgres
     host: postgres-db-primary.app-postgres-db.svc
@@ -20,17 +19,13 @@ spec:
       name: postgres-db-pguser-pg-keycloak-user
       key: password
   
-  # Hostname configuration
   hostname: 
     hostname: keycloak.apps.ocp.weyrich.dev 
   
-  # TLS configuration
-  tlsSecret: 
+  tlsSecret: keycloak-cert
   
-  # Instance configuration
   instances: 1
   
-  # Resources
   resources:
     requests:
       cpu: 500m
