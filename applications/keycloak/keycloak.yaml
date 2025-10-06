@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/version: "26.2"
 spec:
   db:
+    schema: keycloak
     vendor: postgres
     host: postgres-db-primary.app-postgres-db.svc
     port: 5432
