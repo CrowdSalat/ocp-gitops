@@ -21,7 +21,8 @@ spec:
       key: password
   
   hostname: 
-    hostname: keycloak.apps.ocp.weyrich.dev 
+    hostname: keycloak.apps.ocp.weyrich.dev
+    # to prevent keycloak from interfering with the original OpenShift/Kubernetes web console and its authentication flow
     hostname-admin: keycloak-admin.internal 
   
   http:
