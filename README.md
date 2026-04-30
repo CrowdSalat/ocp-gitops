@@ -31,4 +31,5 @@ GitOps repository for OpenShift manifests using ArgoCD and ApplicationSets.
 
 ## Documentation
 
-- [Operator updates via GitOps](docs/operator-updates-gitops.md) — OLM subscriptions, channels, and install-plan approval in this repo
+- [Operator updates via GitOps](docs/operator-updates-gitops.md) — OLM subscriptions, channels, and install-plan approval as represented in this repository
+- [Argo CD Operation Model](docs/argo-operation-model.md) — tenancy, scaling, and separation patterns for Argo CD on OpenShift
