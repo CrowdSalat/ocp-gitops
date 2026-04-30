@@ -2,6 +2,7 @@
 
 GitOps repository for OpenShift manifests using ArgoCD and ApplicationSets.
 
+
 ## Structure
 
 ```
@@ -11,7 +12,7 @@ GitOps repository for OpenShift manifests using ArgoCD and ApplicationSets.
 
 ## Quick Start
 
-1. **Bootstrap ArgoCD:**
+1. **Bootstrap GitOps:**
    ```bash
    oc apply -f bootstrap/
    ```
@@ -27,6 +28,7 @@ GitOps repository for OpenShift manifests using ArgoCD and ApplicationSets.
 - `{{path.basename}}` = application name (e.g., "my-app")
 - `{{path}}` = full path (e.g., "applications/my-app")
 
-## Repository URL
 
-Currently configured for: `https://github.com/CrowdSalat/ocp-gitops.git`
+## Documentation
+
+- [Operator updates via GitOps](docs/operator-updates-gitops.md) — OLM subscriptions, channels, and install-plan approval in this repo
