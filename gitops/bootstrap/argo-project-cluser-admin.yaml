@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: cluster-admin-project
+  namespace: openshift-gitops
+spec:
+  description: "Project for cluster-wide infrastructure management"
+  
+  sourceRepos:
+  - 'https://github.com/CrowdSalat/ocp-gitops.git' 
+
+  destinations:
+  - namespace: '*'
+    server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
