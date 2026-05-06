@@ -8,7 +8,9 @@ kind: OperatorGroup
 metadata:
   name: lightspeed-operatorgroup
   namespace: openshift-lightspeed
-spec: {}
+spec:
+  targetNamespaces:
+  - openshift-lightspeed
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
