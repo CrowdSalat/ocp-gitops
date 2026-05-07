@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teddycloud
+  namespace: app-teddycloud
+  labels:
+    app: teddycloud
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: teddycloud
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: teddycloud
+    spec:
+      containers:
+      - name: teddycloud
+        image: ghcr.io/toniebox-reverse-engineering/teddycloud:tc_v0.6.8
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: box-tls
+          containerPort: 443
+          protocol: TCP
+        - name: https-web
+          containerPort: 8443
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - NET_BIND_SERVICE
+            drop:
+            - ALL
+        volumeMounts:
+        - name: data
+          mountPath: /teddycloud/certs
+          subPath: certs
+        - name: data
+          mountPath: /teddycloud/config
+          subPath: config
+        - name: data
+          mountPath: /teddycloud/data/content
+          subPath: content
+        - name: data
+          mountPath: /teddycloud/data/library
+          subPath: library
+        - name: data
+          mountPath: /teddycloud/data/www/custom_img
+          subPath: custom_img
+        - name: data
+          mountPath: /teddycloud/data/firmware
+          subPath: firmware
+        - name: data
+          mountPath: /teddycloud/data/cache
+          subPath: cache
+        - name: data
+          mountPath: /teddycloud/data/www/plugins
+          subPath: plugins
+        readinessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 300
+          periodSeconds: 30
+          timeoutSeconds: 5
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: teddycloud

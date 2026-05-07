@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: teddycloud
+  namespace: app-teddycloud
+  labels:
+    app: teddycloud
+spec:
+  to:
+    kind: Service
+    name: teddycloud
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
