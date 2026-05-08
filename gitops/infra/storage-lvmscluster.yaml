@@ -1,0 +1,31 @@
+# use automatic discovery of empty disk
+kind: LVMCluster
+apiVersion: lvm.topolvm.io/v1alpha1
+metadata:
+  name: my-lvmcluster
+  namespace: openshift-lvm-storage
+spec:
+  storage:
+    deviceClasses:
+      - default: true
+        fstype: xfs
+        name: vg1
+        thinPoolConfig:
+          name: thin-pool-1
+          overprovisionRatio: 10
+          sizePercent: 90
+
+---
+apiVersion: lvm.topolvm.io/v1alpha1
+kind: LVMCluster
+metadata:
+  name: lvms
+  namespace: openshift-lvm-storage
+spec:
+  storage:
+    deviceClasses:
+    - name: vg1
+      deviceSelector:
+        paths:
+        - /dev/disk/by-id/REPLACE_WITH_DEDICATED_EMPTY_DISK
+
