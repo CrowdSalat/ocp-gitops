@@ -1,0 +1,49 @@
+---
+# 1. PERMISSIONS FOR LVM STORAGE (Namespaced)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-lvm-manager
+  namespace: openshift-lvm-storage
+rules:
+- apiGroups: ["lvm.topolvm.io"]
+  resources: ["lvmclusters"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-lvm-manager-binding
+  namespace: openshift-lvm-storage
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  kind: Role
+  name: argocd-lvm-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# 2. PERMISSIONS FOR GATEWAY API (Cluster-Scoped)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-gateway-manager
+rules:
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["gatewayclasses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-gateway-manager-binding
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  kind: ClusterRole
+  name: argocd-gateway-manager
+  apiGroup: rbac.authorization.k8s.io
