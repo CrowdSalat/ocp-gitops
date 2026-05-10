@@ -20,6 +20,8 @@ spec:
     metadata:
       labels:
         app: teddycloud
+      annotations:
+        openshift.io/required-scc: restricted-v2
     spec:
       containers:
       - name: teddycloud
@@ -67,19 +69,26 @@ spec:
         - name: data
           mountPath: /teddycloud/data/www/plugins
           subPath: plugins
+        # First boot generates TLS certs on PVC; HTTP/TCP :80 stays closed for several minutes.
+        startupProbe:
+          tcpSocket:
+            port: http
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 80
         readinessProbe:
           tcpSocket:
             port: http
-          initialDelaySeconds: 120
           periodSeconds: 10
           timeoutSeconds: 5
-          failureThreshold: 30
+          failureThreshold: 3
         livenessProbe:
           tcpSocket:
             port: http
-          initialDelaySeconds: 300
+          initialDelaySeconds: 120
           periodSeconds: 30
           timeoutSeconds: 5
+          failureThreshold: 3
       volumes:
       - name: data
         persistentVolumeClaim:
