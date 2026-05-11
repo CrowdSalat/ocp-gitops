@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
       - name: teddycloud
-        image: docker.io/crowdsalat/teddycloud-ocp:tc_v0.6.8
+        image: docker.io/crowdsalat/teddycloud-ocp:tc_v0.6.8-ocp2
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
