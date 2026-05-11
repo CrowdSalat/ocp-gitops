@@ -49,7 +49,36 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 
 ---
-# 3. PERMISSIONS FOR GATEWAY API (Cluster-Scoped)
+# 3. PERMISSIONS FOR EXTERNAL SECRETS IN cert-manager (Namespaced)
+# TODO: investigate whether this is still needed if the namespace gets the ArgoCD
+#       managed-by label (argocd.argoproj.io/managed-by: openshift-gitops), which
+#       grants the application controller admin rights automatically.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-external-secrets-manager
+  namespace: cert-manager
+rules:
+- apiGroups: ["external-secrets.io"]
+  resources: ["externalsecrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-external-secrets-manager-binding
+  namespace: cert-manager
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  kind: Role
+  name: argocd-external-secrets-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# 4. PERMISSIONS FOR GATEWAY API (Cluster-Scoped)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
