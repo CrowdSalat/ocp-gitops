@@ -45,20 +45,31 @@ Cursor automatically appends `Co-authored-by: Cursor <cursoragent@cursor.com>` t
 
 ## Expose TeddyCloud via Gateway API with an external IP
 
-**Goal:** Replace the existing OpenShift `Route` with Gateway API resources so TeddyCloud is reachable on a stable external IP — both the web UI (HTTPS) and the Toniebox box connection (mTLS on port 443).
+**Goal:** Expose TeddyCloud on a stable external IP via Gateway API — both the Toniebox box connection (mTLS on port 443) and the web UI (HTTPS).
 
-### Why not just keep the Route?
+### TeddyCloud certificate architecture
 
-The OpenShift `Route` currently handles only the web UI (edge TLS on port 80 → HTTPS). It cannot expose raw TCP/TLS passthrough for port 443, which is **required** for Toniebox box connections: the box uses mutual TLS with TeddyCloud's own CA and the TLS session must reach TeddyCloud unmodified. A gateway that terminates TLS on port 443 will break the box handshake.
+TeddyCloud manages **two completely separate TLS contexts**:
+
+| Port | Cert issued by | Stored on PVC | Who consumes the cert |
+|------|----------------|---------------|----------------------|
+| 443 (box) | TeddyCloud's own generated CA (`certs/server/ca.der`) | `certs/server/` | Toniebox — you must inject `certs/server/ca.der` into the box firmware as the replacement `CA.DER` |
+| 8443 (web UI) | TeddyCloud's own generated CA (same or different cert) | `certs/server/` | Browser — self-signed, not trusted by default |
+
+**Critical facts for port 443:**
+
+- **No domain is required** for the box connection to work. The Toniebox does **not** verify the server cert's CN/SAN against the hostname it connects to — it only validates that the server cert was signed by the injected CA. You can therefore use a raw IP address with `--esp32-hostpatch`.
+- **No cert-manager involvement** on port 443. The Gateway must pass TLS through untouched. If the gateway terminates TLS, TeddyCloud cannot see the box's client certificate and the mTLS handshake fails.
+- TeddyCloud's `certs/server/ca.der` is generated on **first boot**. You must let TeddyCloud boot and initialise before extracting the CA to flash the box.
 
 ### Traffic model
 
-| Traffic | Port | Protocol | Gateway handling |
-|---------|------|----------|-----------------|
-| Toniebox box connection | 443 | TLS (mTLS, TeddyCloud CA) | **Passthrough** — TLS must not be terminated at the gateway; TeddyCloud itself terminates and validates client certs |
-| Web UI | 8443 | HTTPS | TLS termination at gateway with a cert-manager certificate; backend on port 8443 (already TLS) or 80 with re-encrypt |
+| Traffic | Port | Gateway handling | Cert responsibility |
+|---------|------|-----------------|---------------------|
+| Toniebox box connection | 443 | **TLS Passthrough** — gateway forwards raw TCP, TeddyCloud terminates mTLS | TeddyCloud's self-generated server cert + CA |
+| Web UI | 8443 | Keep the existing OpenShift `Route` (edge TLS, already works), **or** add a dedicated gateway HTTPS listener with a cert-manager cert for a proper FQDN | cert-manager (if via gateway); TeddyCloud self-signed (if via Route) |
 
-Putting both listeners on the same `Gateway` is fine; the gateway distinguishes them by port.
+The simplest path: use the Gateway **only** for port 443 (box), and keep the Route for the web UI. The Route already handles web UI TLS fine. Only add a 8443 gateway listener if you need the web UI on a specific external IP/hostname distinct from the ingress router.
 
 ### Step-by-step
 
@@ -78,7 +89,11 @@ Gateway API on OCP creates a `LoadBalancer` Service for each `Gateway`. On a bar
 
 If MetalLB is not yet installed, add it to `gitops/infra/` as part of the infra ApplicationSet task.
 
-**3. Create a `Gateway` in `gitops/applications/teddycloud/`**
+**3. Boot TeddyCloud and let it generate its CA**
+
+On first boot TeddyCloud writes `certs/server/ca.der` (its CA) to the PVC. This must exist before you can flash the box. Let the pod reach ready state (the startup probe on port 80 succeeds after cert generation, which can take a few minutes).
+
+**4. Create a `Gateway` in `gitops/applications/teddycloud/`**
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -87,8 +102,9 @@ metadata:
   name: teddycloud
   namespace: app-teddycloud
   annotations:
-    # Optional: pin a specific IP from the MetalLB pool
-    # metallb.universe.tf/loadBalancerIPs: "192.168.x.y"
+    # Pin a specific IP from the MetalLB pool (recommended — you need a stable
+    # IP to patch into the box firmware).
+    metallb.universe.tf/loadBalancerIPs: "192.168.x.y"
 spec:
   gatewayClassName: openshift-default
   listeners:
@@ -96,43 +112,13 @@ spec:
     port: 443
     protocol: TLS
     tls:
-      mode: Passthrough          # TeddyCloud terminates mTLS itself
-    allowedRoutes:
-      namespaces:
-        from: Same
-  - name: web-https
-    port: 8443
-    protocol: HTTPS
-    tls:
-      mode: Terminate
-      certificateRefs:
-      - name: teddycloud-tls    # cert-manager Certificate (see step 4)
-        kind: Secret
+      mode: Passthrough          # TeddyCloud terminates mTLS; gateway sees raw TCP
     allowedRoutes:
       namespaces:
         from: Same
 ```
 
-**4. Issue a TLS certificate for the web UI listener**
-
-Create a `Certificate` (cert-manager) and `Issuer`/`ClusterIssuer` for the web UI hostname. The `Secret` name must match `certificateRefs` above.
-
-```yaml
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: teddycloud-tls
-  namespace: app-teddycloud
-spec:
-  secretName: teddycloud-tls
-  dnsNames:
-  - teddycloud.example.com     # replace with your actual hostname
-  issuerRef:
-    name: letsencrypt-prod      # or your ClusterIssuer
-    kind: ClusterIssuer
-```
-
-**5. Create a `TLSRoute` for Toniebox box connections (port 443 passthrough)**
+**5. Create a `TLSRoute` for box connections**
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1alpha2
@@ -144,17 +130,120 @@ spec:
   parentRefs:
   - name: teddycloud
     sectionName: box-tls-passthrough
+  # No hostnames field: match all SNI on this listener.
+  # The box sends the original prod.de.tbs.toys SNI or the patched hostname —
+  # we do not filter by SNI since we only have one backend here.
   rules:
   - backendRefs:
     - name: teddycloud
       port: 443
 ```
 
-`TLSRoute` with a `Passthrough` listener routes based on SNI. The Toniebox sends the prod hostname as SNI; you either need to match that SNI or leave it open (no `hostnames` field = match all SNI on that listener). The TeddyCloud box override DNS entry on the box is what points the box to this external IP.
+Note: `TLSRoute` is `v1alpha2`. If the OpenShift Gateway controller version does not support it, use `TCPRoute` instead (identical passthrough semantics, just no SNI visibility at the route level).
 
-**6. Create an `HTTPRoute` for the web UI (port 8443)**
+**6. Extract TeddyCloud's CA from the PVC**
+
+```bash
+# copy the generated CA off the PVC
+oc cp app-teddycloud/<pod-name>:/teddycloud/certs/server/ca.der ./ca.der
+```
+
+This is the file you will inject into the box firmware as the replacement `CA.DER`.
+
+**7. Flash the Toniebox with the fake CA and new hostname**
+
+```bash
+MAC=<box-mac-address>
+GATEWAY_IP=192.168.x.y   # the external IP from step 4
+
+# --- Extract firmware ---
+esptool.py -b 921600 read_flash 0x0 0x800000 tb.esp32.bin
+
+# --- Extract box certificates from firmware ---
+mkdir -p certs/client/esp32 certs/client/${MAC}
+teddycloud --esp32-extract tb.esp32.bin --destination certs/client/esp32
+
+# --- Copy box certs to per-MAC dir and register as the active box ---
+cp certs/client/esp32/CLIENT.DER certs/client/${MAC}/client.der
+cp certs/client/esp32/PRIVATE.DER certs/client/${MAC}/private.der
+cp certs/client/esp32/CA.DER     certs/client/${MAC}/ca.der
+# First box: also set as the default client identity used by TeddyCloud
+cp certs/client/${MAC}/client.der  certs/client/client.der
+cp certs/client/${MAC}/private.der certs/client/private.der
+cp certs/client/${MAC}/ca.der      certs/client/ca.der
+
+# --- Build a patched firmware with TeddyCloud's CA and your IP ---
+mkdir -p certs/client/esp32-fakeca
+cp certs/client/esp32/CLIENT.DER  certs/client/esp32-fakeca/
+cp certs/client/esp32/PRIVATE.DER certs/client/esp32-fakeca/
+cp ./ca.der                        certs/client/esp32-fakeca/CA.DER   # TeddyCloud's CA
+
+cp tb.esp32.bin tb.esp32.fakeca.bin
+teddycloud --esp32-inject    tb.esp32.fakeca.bin --source certs/client/esp32-fakeca
+teddycloud --esp32-hostpatch tb.esp32.fakeca.bin --hostname ${GATEWAY_IP}
+
+# --- Flash ---
+esptool.py -b 921600 write_flash 0x0 tb.esp32.fakeca.bin
+```
+
+After flashing: the box trusts TeddyCloud's CA and connects to `${GATEWAY_IP}:443` (passthrough → TeddyCloud).
+
+**Prefer a hostname over a raw IP.** Patching in a raw IP works but means you must reflash the box if the external IP ever changes (MetalLB pool reallocation, cluster migration, etc.). If you pass a hostname instead, the box resolves it via DNS at connection time — an IP change then only requires updating a DNS record:
+
+```bash
+# Better: use a local hostname resolvable from the box's WiFi network
+teddycloud --esp32-hostpatch tb.esp32.fakeca.bin --hostname teddycloud.home.example.com
+```
+
+Add a local DNS A-record on your home router or Pi-hole pointing `teddycloud.home.example.com` → `<GATEWAY_IP>`. Since the box is always on home WiFi it will use the same DNS server, so a public DNS entry is not required. The hostname does **not** need to match the TeddyCloud server cert's CN — the box only validates the CA chain, not the hostname.
+
+**8. Upload box certs to TeddyCloud**
+
+Copy the per-MAC cert files from your local machine into the PVC so TeddyCloud can authenticate the box's client certificate:
+
+```bash
+oc cp certs/client/${MAC}/client.der app-teddycloud/<pod-name>:/teddycloud/certs/client/${MAC}/client.der
+oc cp certs/client/${MAC}/private.der app-teddycloud/<pod-name>:/teddycloud/certs/client/${MAC}/private.der
+oc cp certs/client/${MAC}/ca.der      app-teddycloud/<pod-name>:/teddycloud/certs/client/${MAC}/ca.der
+# If first box, also set as the default:
+oc cp certs/client/client.der  app-teddycloud/<pod-name>:/teddycloud/certs/client/client.der
+oc cp certs/client/private.der app-teddycloud/<pod-name>:/teddycloud/certs/client/private.der
+oc cp certs/client/ca.der      app-teddycloud/<pod-name>:/teddycloud/certs/client/ca.der
+```
+
+**9. (Optional) Add web UI to the Gateway**
+
+If you want the web UI on the same external IP rather than via the OpenShift ingress Route, add a second listener to the Gateway and a cert-manager Certificate:
 
 ```yaml
+# Add to the Gateway's listeners:
+  - name: web-https
+    port: 8443
+    protocol: HTTPS
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: teddycloud-tls
+        kind: Secret
+    allowedRoutes:
+      namespaces:
+        from: Same
+```
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: teddycloud-tls
+  namespace: app-teddycloud
+spec:
+  secretName: teddycloud-tls
+  dnsNames:
+  - teddycloud.example.com
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -172,18 +261,22 @@ spec:
       port: 8443
 ```
 
-**7. Remove the old OpenShift `Route`**
+Then remove `gitops/applications/teddycloud/route.yaml`.
 
-Delete or remove `gitops/applications/teddycloud/route.yaml` (or keep it during transition and remove once the Gateway is healthy).
+### Sequence summary (critical ordering)
 
-**8. DNS**
+```
+1. Deploy teddycloud pod (custom image)
+2. Wait for first-boot cert generation (startup probe passes)
+3. Apply Gateway + TLSRoute → note the assigned external IP
+4. Extract certs/server/ca.der from PVC
+5. Flash Toniebox with fake CA + --esp32-hostpatch <external-IP>
+6. Upload box client certs to PVC
+7. Box connects → TeddyCloud authenticates mTLS → working
+```
 
-- Point `teddycloud.example.com` (web UI) at the Gateway's external IP.
-- For box connections: configure the Toniebox to use TeddyCloud's DNS override so it resolves `prod.de.tbs.toys` to the same external IP (port 443).
+### Caveats
 
-### Caveats / open questions
-
-- **`TLSRoute` API stability:** `TLSRoute` is `v1alpha2` — confirm the OpenShift Gateway controller version supports it. If not, fall back to `TCPRoute` (same passthrough semantics, no SNI filtering).
-- **Port 80 redirect:** If you want an HTTP→HTTPS redirect for the web UI, add a second listener on port 80 with an `HTTPRoute` that returns a 301. This is optional since the old Route already does this.
-- **mTLS CA bootstrap:** On first boot TeddyCloud generates its own CA under `/teddycloud/certs` on the PVC. The Toniebox must be provisioned with that CA. Passthrough is essential for this to work end-to-end.
-- **MetalLB vs node port:** If MetalLB is unavailable, an alternative is `NodePort` + a static IP on a node. That is fragile; prefer MetalLB.
+- **Use a hostname, not a raw IP** — patch with `--esp32-hostpatch teddycloud.home.example.com` and keep a local DNS A-record pointing at the Gateway IP. If the IP ever changes, update DNS only — no reflash. Still pin the IP in MetalLB (`metallb.universe.tf/loadBalancerIPs`) for stability, but the hostname is the escape hatch if it does change.
+- **`TLSRoute` is `v1alpha2`** — fall back to `TCPRoute` if the controller does not support it.
+- **`oc cp` vs. ConfigMap/Secret** — the box client certs contain private keys and should not be stored in git. Use `oc cp` directly to the PVC or a sealed-secret / external-secret if you want GitOps coverage.
