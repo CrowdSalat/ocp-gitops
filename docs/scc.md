@@ -90,3 +90,37 @@ With the SCC and the image both correctly configured, a single `bind(80)` call g
 If **step 1 is missing** (SCC does not allow the cap), `CapBnd` blocks it — the Pod may not even be admitted.
 
 If **step 2 is missing** (no `setcap` on the binary), `CapEff` stays zero — `bind()` returns `EPERM` even though the SCC permitted it.
+
+---
+
+## 6. Why a shell entrypoint silently breaks `setcap`
+
+### Parent `CapBnd` is the shared ceiling for the whole process chain
+
+Every child process inherits its parent's `CapBnd` as an absolute ceiling — no `execve` can ever raise it. `CapPrm` and `CapEff` are then further constrained within that ceiling. With `no_new_privs=1` the additional rule `new CapPrm &= parent CapPrm` means `CapPrm` can only go **down**, never up. Whatever the parent dropped is gone for every descendant.
+
+### The shell is the parent — and `setcap` cannot be applied to it
+
+When the OCI entrypoint is a shell script, `bash` is the direct parent of the application process. `setcap` writes file capability metadata into a binary's inode, but a shell script is plain text — the kernel ignores `setcap` on it entirely. Bash therefore starts with **no file capabilities**, its `CapPrm` drops to zero, and it becomes the parent that sets the ceiling for everything below it.
+
+Stamping `setcap` on the application binary alone is then pointless: the formula reads the stamp correctly, but `no_new_privs` clamps the result against the parent's (zero) `CapPrm` before the child ever runs:
+
+```
+runc (CapPrm = NET_BIND_SERVICE)
+  └─ execve(bash)         no setcap possible on a script → CapPrm = 0
+       └─ execve(myapp)   setcap +ep stamp present, but parent CapPrm = 0
+                          → no_new_privs clamp: new CapPrm &= 0 = 0
+                          → CapEff = 0 → bind(80) → EPERM
+```
+
+### The fix
+
+Replace the shell script entrypoint with a **compiled binary** that also carries `setcap +ep`. The container runtime execs it directly, so `CapPrm` is never zeroed before the application is reached:
+
+```
+runc (CapPrm = NET_BIND_SERVICE)
+  └─ execve(entrypoint)   setcap +ep → new CapPrm = NET_BIND_SERVICE ✓
+       └─ execve(myapp)   setcap +ep, parent CapPrm = NET_BIND_SERVICE
+                          → no_new_privs clamp: NET_BIND_SERVICE & NET_BIND_SERVICE = NET_BIND_SERVICE ✓
+                          → CapEff = NET_BIND_SERVICE → bind(80) succeeds
+```
