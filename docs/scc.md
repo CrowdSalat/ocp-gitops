@@ -97,13 +97,15 @@ If **step 2 is missing** (no `setcap` on the binary), `CapEff` stays zero — `b
 
 ### Parent `CapBnd` is the shared ceiling for the whole process chain
 
-Every child process inherits its parent's `CapBnd` as an absolute ceiling — no `execve` can ever raise it. `CapPrm` and `CapEff` are then further constrained within that ceiling. With `no_new_privs=1` the additional rule `new CapPrm &= parent CapPrm` means `CapPrm` can only go **down**, never up. Whatever the parent dropped is gone for every descendant.
+Every child process inherits its parent's `CapBnd` as an absolute ceiling — no `execve` can ever raise it. `CapPrm` and `CapEff` are then further constrained within that ceiling. 
+
+ith `no_new_privs=1` the additional rule `new CapPrm &= parent CapPrm` means `CapPrm` can only go **down**, never up. Whatever the parent dropped is gone for every descendant.
 
 ### The shell is the parent — and `setcap` cannot be applied to it
 
 When the OCI entrypoint is a shell script, `bash` is the direct parent of the application process. `setcap` writes file capability metadata into a binary's inode, but a shell script is plain text — the kernel ignores `setcap` on it entirely. Bash therefore starts with **no file capabilities**, its `CapPrm` drops to zero, and it becomes the parent that sets the ceiling for everything below it.
 
-Stamping `setcap` on the application binary alone is then pointless: the formula reads the stamp correctly, but `no_new_privs` clamps the result against the parent's (zero) `CapPrm` before the child ever runs:
+Stamping `setcap` on the application binary alone is then pointless: the formula reads the stamp correctly, but `no_new_privs` (`securityContext.allowPriviligeEscalation` in OpenShift) clamps the result against the parent's (zero) `CapPrm` before the child ever runs:
 
 ```
 runc (CapPrm = NET_BIND_SERVICE)
