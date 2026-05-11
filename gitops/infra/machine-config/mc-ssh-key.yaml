@@ -13,3 +13,4 @@ spec:
       - name: core
         sshAuthorizedKeys:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOmQLmq0pGdPNlE3i7nedoBJWYjdLQo5kV8VQ4NjWq2P jweyrich@redhat.com
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMXx32WwufnHiUO0XOB6nw3G5cf4+eLSh8Yvw4eykRQZ Jan bitwarden shared key
