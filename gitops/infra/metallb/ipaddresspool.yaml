@@ -1,0 +1,8 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: hetzner-additional
+  namespace: metallb-system
+spec:
+  addresses:
+    - 148.251.134.119/32
