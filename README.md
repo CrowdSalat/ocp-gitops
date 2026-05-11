@@ -33,3 +33,4 @@ GitOps repository for OpenShift manifests using ArgoCD and ApplicationSets.
 
 - [Operator updates via GitOps](docs/operator-updates-gitops.md) — OLM subscriptions, channels, and install-plan approval as represented in this repository
 - [Argo CD Operation Model](docs/argo-operation-model.md) — tenancy, scaling, and separation patterns for Argo CD on OpenShift
+- [ArgoCD Namespace Permissions](docs/argocd-namespace-permissions.md) — why ArgoCD needs per-namespace RBAC and how the `managed-by` label automates it
