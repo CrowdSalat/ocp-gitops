@@ -25,7 +25,31 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 
 ---
-# 2. PERMISSIONS FOR GATEWAY API (Cluster-Scoped)
+# 2. PERMISSIONS FOR EXTERNAL SECRETS OPERATOR (Cluster-Scoped)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-external-secrets-manager
+rules:
+- apiGroups: ["external-secrets.io"]
+  resources: ["clustersecretstores", "clusterexternalsecrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-external-secrets-manager-binding
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  kind: ClusterRole
+  name: argocd-external-secrets-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# 3. PERMISSIONS FOR GATEWAY API (Cluster-Scoped)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
