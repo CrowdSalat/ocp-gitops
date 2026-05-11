@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: infra
+  namespace: openshift-gitops
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/CrowdSalat/ocp-gitops.git
+      revision: HEAD
+      directories:
+      - path: gitops/infra/*
+  template:
+    metadata:
+      name: 'infra-{{path.basename}}'
+    spec:
+      project: cluster-admin-project
+      source:
+        repoURL: https://github.com/CrowdSalat/ocp-gitops.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+      syncPolicy:
+        automated:
+          prune: false
+          selfHeal: false
+        syncOptions:
+        - ServerSideApply=true
