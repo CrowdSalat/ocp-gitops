@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
       - name: teddycloud
-        image: ghcr.io/toniebox-reverse-engineering/teddycloud:tc_v0.6.8
+        image: docker.io/crowdsalat/teddycloud-ocp:tc_v0.6.8
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
