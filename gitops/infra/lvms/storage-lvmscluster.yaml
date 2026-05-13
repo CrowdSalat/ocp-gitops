@@ -14,3 +14,5 @@ spec:
           name: thin-pool-1
           overprovisionRatio: 10
           sizePercent: 90
+          chunkSizeCalculationPolicy: Static
+          metadataSizeCalculationPolicy: Host
