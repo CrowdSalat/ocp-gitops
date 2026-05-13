@@ -4,137 +4,225 @@ Red Hat docs: https://docs.redhat.com/en/documentation/openshift_container_platf
 
 ## What it is
 
-`openshift/oauth-proxy` is a reverse proxy sidecar that gates access to a backend service using OpenShift's built-in OAuth server. Unauthenticated requests are redirected to the cluster login page; once the user authenticates the proxy forwards the request to the upstream application.
+`openshift/oauth-proxy` is a reverse-proxy sidecar that gates a backend service behind the cluster's built-in OAuth server. Unauthenticated requests are redirected to the OCP login page; once the user authenticates the proxy forwards the request to the upstream application.
 
-No external identity provider, no Keycloak, no Authentik — it reuses whatever login method is already configured on the cluster (htpasswd, LDAP, OIDC, …).
+No external identity provider needed — it reuses whatever login method is configured on the cluster (htpasswd, LDAP, OIDC, …). All authenticated cluster users can access the app by default; access can be narrowed with `--openshift-sar` (see below).
 
-## When to use it
-
-Use it when an application has no authentication of its own (or weak authentication) and you want to restrict access to cluster users without deploying a separate identity provider.
-
-Typical use case in this repo: TeddyCloud's web UI on port 8443 — it has no login screen and must not be publicly accessible without authentication.
-
-## How it works
+## Traffic flow
 
 ```
-Client → Gateway (TLS terminated) → oauth-proxy sidecar (:8443) → app container (:8080 plain HTTP)
+Browser → OCP Router (edge TLS, wildcard cert)
+        → Route → Service :4180
+        → oauth-proxy sidecar :4180 (plain HTTP, --http-address)
+        → App container :80 (localhost, plain HTTP)
 ```
 
 The proxy:
+1. Checks for a valid session cookie.
+2. If missing: redirects to the cluster OAuth server.
+3. After login the OAuth server redirects back with a code; the proxy exchanges it for a token, sets a signed session cookie, and forwards the original request.
+4. Subsequent requests with a valid cookie go straight to the upstream.
 
-1. Checks for a valid session cookie on the request.
-2. If missing / expired: redirects to `https://<cluster-oauth-server>/oauth/authorize`.
-3. After login the OAuth server sends the user back with a code; the proxy exchanges it for a token and sets a session cookie.
-4. Subsequent requests with the valid cookie are forwarded to the upstream app.
+## Files to add / change
 
-## Required pieces
+Given an existing app with a `Deployment` and a `Service`, add these six pieces:
 
-### 1. ServiceAccount
-
-The proxy authenticates **as a ServiceAccount**, which is registered as an OAuth client with the cluster. The `oauth-redirectreference` annotation tells the OAuth server which redirect URI to accept.
+### 1. `serviceaccount.yaml` — the OAuth client identity
 
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: myapp
-  namespace: app-myapp
+  name: <app>
+  namespace: <app-namespace>
   annotations:
+    # Tell the OAuth server which Route hosts the callback URL.
+    # Use oauth-redirecturi.primary (literal URL) if you expose via
+    # Gateway/HTTPRoute instead of a Route.
     serviceaccounts.openshift.io/oauth-redirectreference.primary: >
       {"kind":"OAuthRedirectReference","apiVersion":"v1",
-       "reference":{"kind":"Route","name":"myapp"}}
+       "reference":{"kind":"Route","name":"<route-name>"}}
 ```
 
-If you expose the app via a Gateway (not a Route), use a literal redirect URI instead:
-
-```yaml
-    serviceaccounts.openshift.io/oauth-redirecturi.primary: https://myapp.example.com/oauth/callback
-```
-
-### 2. ClusterRoleBinding
-
-The ServiceAccount needs `system:auth-delegator` to validate tokens with the API server.
+### 2. `clusterrolebinding.yaml` — token validation
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: myapp-auth-delegator
+  name: <app>-auth-delegator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: system:auth-delegator
 subjects:
 - kind: ServiceAccount
-  name: myapp
-  namespace: app-myapp
+  name: <app>
+  namespace: <app-namespace>
 ```
 
-### 3. Session secret
+### 3. `externalsecret-proxy-session.yaml` — cookie signing key
 
-The proxy uses a random secret to sign session cookies. Generate one and store it as a Secret (use External Secrets / Infisical for this, not a plain Secret in git).
+The proxy signs its session cookies with a random secret. Store it in Infisical (key name of your choice) and pull it via ExternalSecret — never commit the value to git.
+
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: <app>-proxy-session
+  namespace: <app-namespace>
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: infisical
+  target:
+    name: <app>-proxy-session
+  data:
+  - secretKey: session_secret
+    remoteRef:
+      key: <INFISICAL_KEY_NAME>
+```
+
+Generate a suitable value once (at least 16 bytes):
 
 ```bash
-oc create secret generic myapp-proxy-session \
-  --from-literal=session_secret="$(openssl rand -base64 32)" \
-  -n app-myapp
+openssl rand -base64 32
 ```
 
-### 4. Proxy sidecar in the Deployment
+### 4. `route.yaml` — edge-terminated HTTPS (wildcard cert automatic)
 
-Add a second container alongside the application container. The proxy binds on `8443` (HTTPS) and forwards to the app on `8080` (plain HTTP).
+```yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: <route-name>
+  namespace: <app-namespace>
+spec:
+  host: <app>.apps.ocp.jharings.de
+  to:
+    kind: Service
+    name: <app>
+  port:
+    targetPort: proxy
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+```
+
+The OCP Router applies the wildcard ingress cert automatically — no `Certificate` resource needed.
+
+### 5. `service.yaml` — expose the proxy port
+
+Replace the existing web-UI port with the proxy port (or add it alongside if other components still need the raw app port):
+
+```yaml
+ports:
+- name: proxy
+  port: 4180
+  targetPort: proxy
+  protocol: TCP
+```
+
+### 6. `deployment.yaml` — sidecar and volumes
+
+Three changes to an existing Deployment:
+
+**a) Set the ServiceAccount on the pod spec:**
+
+```yaml
+spec:
+  serviceAccountName: <app>
+```
+
+**b) Add the sidecar container:**
 
 ```yaml
 - name: oauth-proxy
-  image: quay.io/openshift/origin-oauth-proxy:4.15
+  image: quay.io/openshift/origin-oauth-proxy:4.16
   args:
-  - --https-address=:8443
+  - --http-address=:4180
+  - --https-address=          # must be explicit; default is :443 which crashes without a cert
   - --provider=openshift
-  - --openshift-service-account=myapp
-  - --upstream=http://localhost:8080
-  - --tls-cert=/etc/tls/private/tls.crt
-  - --tls-key=/etc/tls/private/tls.key
+  - --openshift-service-account=<app>
+  - --upstream=http://localhost:<app-http-port>
   - --cookie-secret-file=/etc/proxy/secrets/session_secret
+  - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
   ports:
-  - containerPort: 8443
-    name: https-proxy
+  - name: proxy
+    containerPort: 4180
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+      - ALL
   volumeMounts:
-  - name: proxy-tls
-    mountPath: /etc/tls/private
-    readOnly: true
   - name: proxy-session-secret
     mountPath: /etc/proxy/secrets
     readOnly: true
 ```
 
-The TLS cert (`proxy-tls`) can be the app's existing cert secret. The upstream app container should be changed to listen only on `127.0.0.1` (or a loopback port) so it is not reachable without going through the proxy.
-
-### 5. Service
-
-Point the Service at the proxy port, not the app port:
+**c) Add the session-secret volume:**
 
 ```yaml
-ports:
-- name: https-proxy
-  port: 8443
-  targetPort: https-proxy
+volumes:
+- name: proxy-session-secret
+  secret:
+    secretName: <app>-proxy-session
 ```
 
-The app's original port (e.g. `8080`) should either be removed from the Service or kept only as a ClusterIP-internal port if other components need it.
+## Checklist
 
-## Restricting access further
+- [ ] ServiceAccount created with `oauth-redirectreference` annotation pointing at the Route
+- [ ] ClusterRoleBinding `system:auth-delegator` for the ServiceAccount
+- [ ] Secret value stored in Infisical; ExternalSecret created
+- [ ] Route created with `tls.termination: edge`
+- [ ] Service updated to expose port `4180` (named `proxy`)
+- [ ] Deployment updated: `serviceAccountName`, sidecar container, `proxy-session-secret` volume
 
-By default any authenticated cluster user can access the app. To limit to specific groups or users pass additional flags:
+## Image version
+
+Pin the image to the same minor stream as the cluster:
 
 ```
---openshift-sar={"namespace":"app-myapp","resource":"services","verb":"get"}
+quay.io/openshift/origin-oauth-proxy:4.16   # for OCP 4.21.x
 ```
 
-This grants access only to users who can `get` Services in the app namespace — i.e. admins. Adjust the SAR to match your RBAC.
+The origin-oauth-proxy minor version does not need to match OCP exactly but should be close. Avoid `latest` in GitOps.
+
+## Restricting access to specific users or groups
+
+By default any authenticated cluster user can reach the app. To restrict further, add `--openshift-sar`:
+
+```
+- --openshift-sar={"namespace":"<app-namespace>","resource":"services","verb":"get"}
+```
+
+This grants access only to users who can `get` Services in the app namespace (i.e. admins with namespace access). Adjust the SAR predicate to match your RBAC.
 
 ## Caveats
 
-- **Token scope** — the proxy requests a token with scope `user:info`. It does not get access to cluster resources on behalf of the user.
-- **Cookie lifetime** — default session duration is 168 h (7 days). Override with `--cookie-expire`.
-- **Non-browser clients** — clients that cannot follow redirects (e.g. the Toniebox) must use a separate Service/port that bypasses the proxy entirely. In the TeddyCloud case port 443 (Toniebox mTLS) goes through a direct LoadBalancer Service and is unaffected.
-- **Image version** — pin the proxy image to the same minor version as your cluster (e.g. `origin-oauth-proxy:4.15` for OCP 4.15) to avoid API incompatibilities.
+### `--https-address=` must be set explicitly
+
+The proxy defaults `--https-address=:443` even when `--http-address` is specified. Without an explicit `--https-address=` (empty string), the proxy tries to load a TLS cert, fails with `FATAL: loading tls config (, ) failed - missing filename for serving cert`, and crash-loops. Always include the empty flag when using plain-HTTP mode behind an edge-terminated Route.
+
+### Session cookie vs. OCP OAuth
+
+The session secret is **not** an OCP credential — it only signs the proxy's own session cookie. Losing or rotating it invalidates all active sessions (users must log in again) but has no other side effect. OCP's OAuth server handles the actual authentication.
+
+### Non-browser clients
+
+Clients that cannot follow HTTP redirects (e.g. the Toniebox) must bypass the proxy via a separate Service and port. Protect that port at the network level (LoadBalancer Service with a fixed IP, firewall rules, etc.).
+
+### Gateway API alternative
+
+If the app is exposed via Gateway API (HTTPRoute) instead of a Route, replace the `oauth-redirectreference` annotation with a literal URI:
+
+```yaml
+serviceaccounts.openshift.io/oauth-redirecturi.primary: https://<host>/oauth/callback
+```
+
+And adjust the Gateway listener + HTTPRoute to target the proxy port.
