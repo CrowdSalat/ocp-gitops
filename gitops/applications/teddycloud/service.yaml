@@ -18,7 +18,7 @@ spec:
     port: 443
     targetPort: box-tls
     protocol: TCP
-  - name: https-web
-    port: 8443
-    targetPort: https-web
+  - name: proxy
+    port: 4180
+    targetPort: proxy
     protocol: TCP

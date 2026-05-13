@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: teddycloud-ui
+  namespace: app-teddycloud
+spec:
+  host: teddycloud.apps.ocp.jharings.de
+  to:
+    kind: Service
+    name: teddycloud
+  port:
+    targetPort: proxy
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

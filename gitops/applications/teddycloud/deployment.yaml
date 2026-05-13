@@ -23,6 +23,7 @@ spec:
       annotations:
         openshift.io/required-scc: restricted-v2
     spec:
+      serviceAccountName: teddycloud
       containers:
       - name: teddycloud
         image: docker.io/crowdsalat/teddycloud-ocp:tc_v0.6.8-ocp2
@@ -89,7 +90,35 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 5
           failureThreshold: 3
+      - name: oauth-proxy
+        image: quay.io/openshift/origin-oauth-proxy:4.16
+        args:
+        - --http-address=:4180
+        - --https-address=
+        - --provider=openshift
+        - --openshift-service-account=teddycloud
+        - --upstream=http://localhost:80
+        - --cookie-secret-file=/etc/proxy/secrets/session_secret
+        - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        ports:
+        - name: proxy
+          containerPort: 4180
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: proxy-session-secret
+          mountPath: /etc/proxy/secrets
+          readOnly: true
       volumes:
       - name: data
         persistentVolumeClaim:
           claimName: teddycloud
+      - name: proxy-session-secret
+        secret:
+          secretName: teddycloud-proxy-session
