@@ -1,0 +1,22 @@
+# Exposes port 443 (Toniebox mTLS connection) on a stable external IP via MetalLB.
+# TLS passthrough is handled at L4 (MetalLB → pod); TeddyCloud terminates TLS itself.
+# The OCP built-in Gateway controller (openshift.io/gateway-controller/v1) does not
+# support TLSRoute / TLS passthrough, so a LoadBalancer Service is used instead.
+apiVersion: v1
+kind: Service
+metadata:
+  name: teddycloud-box-lb
+  namespace: app-teddycloud
+  labels:
+    app: teddycloud
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "148.251.134.119"
+spec:
+  type: LoadBalancer
+  selector:
+    app: teddycloud
+  ports:
+  - name: box-tls
+    port: 443
+    targetPort: box-tls
+    protocol: TCP
