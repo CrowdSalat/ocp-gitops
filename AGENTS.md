@@ -13,6 +13,12 @@
 
 When unsure where a resource belongs, find the nearest similar concern (same operator or same app) and mirror its directory and naming.
 
+## Validation and workflow
+
+- **Always use the git flow** (`edit → commit → push → Argo syncs`) for anything under `gitops/infra/` and for changes that must persist. Both ApplicationSets run `selfHeal: true` + `prune: true`, so direct changes are reverted and non-git resources are deleted within the next sync cycle.
+- **Pre-push validation:** `oc apply --dry-run=server -f <file>` for schema/admission checks; `argocd app diff <app>` and `argocd app sync <app> --dry-run` to catch Argo-specific issues (sync-waves, hooks, ordering) before applying.
+- **Direct `oc apply`** is acceptable only for stateless, recreatable app-tier resources (Deployment, Service, Route, ConfigMap, …) as a short-lived test window. Never use it for operators, LVMS, MachineConfig, CRDs, ClusterIssuers, or SecretStores.
+
 ## Conventions
 
 - **Cluster CLI:** prefer **`oc`** for OpenShift-specific resources; otherwise match existing docs/scripts.
