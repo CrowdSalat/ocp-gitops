@@ -18,7 +18,7 @@ export INFISICAL_DOMAIN="${INFISICAL_HOST}"
 INFISICAL_PROJECT="ocp"
 INFISICAL_ENV="prod"
 INFISICAL_SECRET_NAME="CLOUDFLARE_API_TOKEN"
-INFISICAL_PATH="/cert-manager"
+INFISICAL_PATH="/"
 
 CF_TOKEN_URL="https://dash.cloudflare.com/profile/api-tokens"
 
@@ -85,23 +85,27 @@ if [[ -z "${PROJECT_ID}" ]]; then
 fi
 echo "    Project ID: ${PROJECT_ID}"
 
-# ── Step 6: Ensure the /cert-manager folder exists ───────────────────────────
-FOLDER_NAME="${INFISICAL_PATH#/}"  # strip leading slash → "cert-manager"
-echo "==> Ensuring folder '${INFISICAL_PATH}' exists..."
-FOLDER_CHECK=$(infisical_api_get \
-  "/v1/folders?workspaceId=${PROJECT_ID}&environment=${INFISICAL_ENV}&path=/")
-FOLDER_ID=$(echo "${FOLDER_CHECK}" \
-  | jq -r --arg name "${FOLDER_NAME}" \
-    '.folders[] | select(.name == $name) | .id // empty')
+# ── Step 6: Ensure the target folder exists (skip for root) ──────────────────
+FOLDER_NAME="${INFISICAL_PATH#/}"  # strip leading slash; empty string means root
+if [[ -n "${FOLDER_NAME}" ]]; then
+  echo "==> Ensuring folder '${INFISICAL_PATH}' exists..."
+  FOLDER_CHECK=$(infisical_api_get \
+    "/v1/folders?workspaceId=${PROJECT_ID}&environment=${INFISICAL_ENV}&path=/")
+  FOLDER_ID=$(echo "${FOLDER_CHECK}" \
+    | jq -r --arg name "${FOLDER_NAME}" \
+      '.folders[] | select(.name == $name) | .id // empty')
 
-if [[ -z "${FOLDER_ID}" ]]; then
-  echo "    Not found — creating..."
-  infisical_api_post "/v1/folders" \
-    "{\"workspaceId\":\"${PROJECT_ID}\",\"environment\":\"${INFISICAL_ENV}\",\"name\":\"${FOLDER_NAME}\",\"path\":\"/\"}" \
-    >/dev/null
-  echo "    Created."
+  if [[ -z "${FOLDER_ID}" ]]; then
+    echo "    Not found — creating..."
+    infisical_api_post "/v1/folders" \
+      "{\"workspaceId\":\"${PROJECT_ID}\",\"environment\":\"${INFISICAL_ENV}\",\"name\":\"${FOLDER_NAME}\",\"path\":\"/\"}" \
+      >/dev/null
+    echo "    Created."
+  else
+    echo "    Already exists (${FOLDER_ID})."
+  fi
 else
-  echo "    Already exists (${FOLDER_ID})."
+  echo "==> Using root path — no folder creation needed."
 fi
 
 # ── Step 7: Upsert the secret via API ────────────────────────────────────────
@@ -137,7 +141,7 @@ echo
 echo "─────────────────────────────────────────────────────────"
 echo "  Cloudflare zone:     ${ZONE_SUMMARY}"
 echo "  Infisical project:   ${INFISICAL_PROJECT} (${PROJECT_ID})"
-echo "  Infisical path:      ${INFISICAL_PATH}/${INFISICAL_SECRET_NAME}"
+echo "  Infisical secret:    ${INFISICAL_PATH%/}/${INFISICAL_SECRET_NAME}"
 echo "─────────────────────────────────────────────────────────"
 echo
 echo "Next steps:"
