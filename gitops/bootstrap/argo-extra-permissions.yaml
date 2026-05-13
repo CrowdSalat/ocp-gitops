@@ -102,7 +102,33 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 
 ---
-# 5. PERMISSIONS FOR GATEWAY API (Cluster-Scoped)
+# 5. PERMISSIONS FOR CERT-MANAGER CERTIFICATES IN openshift-ingress (Namespaced)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-cert-manager-manager
+  namespace: openshift-ingress
+rules:
+- apiGroups: ["cert-manager.io"]
+  resources: ["certificates"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-cert-manager-manager-binding
+  namespace: openshift-ingress
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  kind: Role
+  name: argocd-cert-manager-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# 6. PERMISSIONS FOR GATEWAY API (Cluster-Scoped)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
