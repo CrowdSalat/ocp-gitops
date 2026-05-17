@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teddycloud-spotify-bridge
+  namespace: app-teddycloud
+  labels:
+    app: teddycloud-spotify-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: teddycloud-spotify-bridge
+  template:
+    metadata:
+      labels:
+        app: teddycloud-spotify-bridge
+    spec:
+      serviceAccountName: teddycloud-spotify-bridge
+      containers:
+      - name: teddycloud-spotify-bridge
+        image: docker.io/crowdsalat/teddycloud-spotify-bridge:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        # ── Event source ──────────────────────────────────────────────────────
+        - name: BRIDGE_EVENT_SOURCE
+          value: mqtt
+        # ── MQTT ──────────────────────────────────────────────────────────────
+        - name: BRIDGE_MQTT_HOST
+          value: mosquitto.app-teddycloud.svc.cluster.local
+        - name: BRIDGE_MQTT_PORT
+          value: "1883"
+        - name: MP_MESSAGING_INCOMING_TEDDYCLOUD_ENABLED
+          value: "true"
+        # ── Mapping file ──────────────────────────────────────────────────────
+        - name: BRIDGE_MAPPINGS_FILE
+          value: /deployments/config/tonie-mappings.json
+        # ── Spotify credentials ───────────────────────────────────────────────
+        - name: BRIDGE_SPOTIFY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: teddycloud-spotify-bridge-spotify
+              key: username
+        - name: BRIDGE_SPOTIFY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: teddycloud-spotify-bridge-spotify
+              key: password
+        volumeMounts:
+        - name: tonie-mappings
+          mountPath: /deployments/config
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+      volumes:
+      - name: tonie-mappings
+        configMap:
+          name: tonie-mappings

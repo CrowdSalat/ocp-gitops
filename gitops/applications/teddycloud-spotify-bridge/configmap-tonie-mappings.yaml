@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tonie-mappings
+  namespace: app-teddycloud
+data:
+  tonie-mappings.json: |
+    {
+      "mappings": [
+        {
+          "tagId": "AABBCCDD01020304",
+          "spotifyUri": "spotify:album:1DFixLWuPkv3KT3TnV35m3",
+          "label": "Example Album"
+        }
+      ]
+    }

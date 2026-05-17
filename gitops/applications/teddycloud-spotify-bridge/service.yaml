@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: teddycloud-spotify-bridge
+  namespace: app-teddycloud
+  labels:
+    app: teddycloud-spotify-bridge
+spec:
+  selector:
+    app: teddycloud-spotify-bridge
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
