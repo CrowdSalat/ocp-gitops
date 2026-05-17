@@ -13,6 +13,17 @@
 
 When unsure where a resource belongs, find the nearest similar concern (same operator or same app) and mirror its directory and naming.
 
+## Hardware
+
+Single-node cluster (no GPU). Avoid workloads or operators that require GPU, NUMA tuning, or multi-node HA assumptions.
+
+| Component | Spec |
+|-----------|------|
+| CPU | Intel Xeon E5-1650 V3 |
+| RAM | 8 × 32 GiB DDR4 ECC registered (256 GiB total) |
+| Storage | 2 × 480 GiB SSD SATA (datacenter grade) |
+| NIC | Intel I210 (1 GbE) |
+
 ## Validation and workflow
 
 - **Always use the git flow** (`edit → commit → push → Argo syncs`) for anything under `gitops/infra/` and for changes that must persist. Both ApplicationSets run `selfHeal: true` + `prune: true`, so direct changes are reverted and non-git resources are deleted within the next sync cycle.
