@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: app-ollama
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: ollama
+  # Recreate because the PVC is RWO – old pod must be gone before new one attaches
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      serviceAccountName: ollama
+      initContainers:
+      - name: model-puller
+        image: docker.io/ollama/ollama:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          ollama serve &
+          OLLAMA_PID=$!
+          echo "Waiting for ollama to become ready..."
+          until ollama list > /dev/null 2>&1; do
+            sleep 3
+          done
+          echo "Pulling models: $OLLAMA_PULL_MODELS"
+          for model in $OLLAMA_PULL_MODELS; do
+            echo "  -> pulling $model"
+            ollama pull "$model"
+          done
+          kill $OLLAMA_PID
+          wait $OLLAMA_PID 2>/dev/null || true
+          echo "Init complete"
+        envFrom:
+        - configMapRef:
+            name: ollama-models
+        volumeMounts:
+        - name: models
+          mountPath: /root/.ollama
+        resources:
+          requests:
+            cpu: "500m"
+            memory: 512Mi
+          limits:
+            memory: 2Gi
+      containers:
+      - name: ollama
+        image: docker.io/ollama/ollama:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 11434
+          protocol: TCP
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0:11434"
+        # Tune to available vCPUs on the node; Ollama defaults to all detected cores
+        - name: OLLAMA_NUM_THREADS
+          value: "4"
+        resources:
+          requests:
+            cpu: "2"
+            memory: 8Gi
+          limits:
+            cpu: "8"
+            memory: 16Gi
+        volumeMounts:
+        - name: models
+          mountPath: /root/.ollama
+        # First startup is instant (models already pulled by init container)
+        startupProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+        readinessProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: ollama
