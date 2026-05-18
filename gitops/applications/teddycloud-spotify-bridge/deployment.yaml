@@ -74,9 +74,7 @@ spec:
       # ── go-librespot sidecar (Spotify Connect + audio pipe) ─────────────────
       - name: go-librespot
         image: ghcr.io/devgianlu/go-librespot:v0.7.1
-        args:
-        - "--config_dir"
-        - "/var/lib/go-librespot"
+        # No args override: uses image default CMD which already sets --config_dir /config
         ports:
         - name: api
           containerPort: 3678
@@ -84,9 +82,9 @@ spec:
           containerPort: 9090
         volumeMounts:
         - name: go-librespot-state
-          mountPath: /var/lib/go-librespot
+          mountPath: /config
         - name: go-librespot-config
-          mountPath: /var/lib/go-librespot/config.yml
+          mountPath: /config/config.yml
           subPath: config.yml
         - name: audio-pipe
           mountPath: /audio
