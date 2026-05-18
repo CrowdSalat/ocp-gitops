@@ -11,6 +11,11 @@ data:
           "tagId": "E00403500EEA4BF2",
           "spotifyUri": "spotify:album:00Pxqrupz6xjkI0vd4Otxb",
           "label": "Die drei ??? - Folge 238: Falsche Schuld"
+        },
+        {
+          "tagId": "E00403500EEA6E4C",
+          "spotifyUri": "spotify:album:00Pxqrupz6xjkI0vd4Otxb",
+          "label": "Die drei ??? - Folge 238: Falsche Schuld"
         }
       ]
     }
