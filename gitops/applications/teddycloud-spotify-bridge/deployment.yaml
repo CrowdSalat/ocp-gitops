@@ -17,6 +17,7 @@ spec:
     spec:
       serviceAccountName: teddycloud-spotify-bridge
       containers:
+      # ── Main bridge (Quarkus) ────────────────────────────────────────────────
       - name: teddycloud-spotify-bridge
         image: docker.io/crowdsalat/teddycloud-spotify-bridge:1.0.0-SNAPSHOT
         imagePullPolicy: Always
@@ -37,21 +38,18 @@ spec:
         # ── Mapping file ──────────────────────────────────────────────────────
         - name: BRIDGE_MAPPINGS_FILE
           value: /deployments/config/tonie-mappings.json
-        # ── Spotify credentials ───────────────────────────────────────────────
-        - name: BRIDGE_SPOTIFY_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: teddycloud-spotify-bridge-spotify
-              key: username
-        - name: BRIDGE_SPOTIFY_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: teddycloud-spotify-bridge-spotify
-              key: password
+        # ── Audio pipe (shared with go-librespot sidecar) ─────────────────────
+        - name: BRIDGE_AUDIO_PIPE_PATH
+          value: /audio/librespot.pipe
+        # ── go-librespot API ──────────────────────────────────────────────────
+        - name: BRIDGE_GO_LIBRESPOT_BASE_URL
+          value: http://localhost:3678
         volumeMounts:
         - name: tonie-mappings
           mountPath: /deployments/config
           readOnly: true
+        - name: audio-pipe
+          mountPath: /audio
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
@@ -72,7 +70,44 @@ spec:
             port: http
           initialDelaySeconds: 30
           periodSeconds: 30
+
+      # ── go-librespot sidecar (Spotify Connect + audio pipe) ─────────────────
+      - name: go-librespot
+        image: ghcr.io/devgianlu/go-librespot:v0.7.1
+        args:
+        - "--config_dir"
+        - "/var/lib/go-librespot"
+        ports:
+        - name: api
+          containerPort: 3678
+        - name: oauth-callback
+          containerPort: 9090
+        volumeMounts:
+        - name: go-librespot-state
+          mountPath: /var/lib/go-librespot
+        - name: go-librespot-config
+          mountPath: /var/lib/go-librespot/config.yml
+          subPath: config.yml
+        - name: audio-pipe
+          mountPath: /audio
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+
       volumes:
       - name: tonie-mappings
         configMap:
           name: tonie-mappings
+      - name: audio-pipe
+        emptyDir: {}
+      - name: go-librespot-state
+        persistentVolumeClaim:
+          claimName: go-librespot-state
+      - name: go-librespot-config
+        configMap:
+          name: go-librespot-config
