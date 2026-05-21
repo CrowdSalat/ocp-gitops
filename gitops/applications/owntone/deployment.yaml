@@ -23,6 +23,8 @@ spec:
       - name: owntone
         image: docker.io/owntone/owntone:latest
         imagePullPolicy: IfNotPresent
+        # Bypass OpenRC (which requires cgroups/dbus/avahi) and start owntone directly.
+        command: ["/usr/sbin/owntone", "-f", "-c", "/etc/owntone/owntone.conf"]
         env:
         - name: UID
           value: "1000"

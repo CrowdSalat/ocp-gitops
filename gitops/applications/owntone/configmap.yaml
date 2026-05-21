@@ -12,6 +12,11 @@ data:
       # Leave empty to disable authentication (safe when accessed via port-forward only).
       admin_password = ""
       websocket_port = 3688
+      # Disable all mDNS advertising — avahi/dbus are not available in this container.
+      mdns_no_rsp = true
+      mdns_no_daap = true
+      mdns_no_cname = true
+      mdns_no_web = true
     }
 
     library {
