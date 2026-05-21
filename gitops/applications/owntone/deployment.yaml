@@ -51,6 +51,8 @@ spec:
           mountPath: /var/cache/owntone
         - name: media
           mountPath: /srv/media
+        - name: run
+          mountPath: /run
         startupProbe:
           tcpSocket:
             port: http
@@ -78,4 +80,8 @@ spec:
         persistentVolumeClaim:
           claimName: owntone-cache
       - name: media
+        emptyDir: {}
+      # OpenRC (Alpine init) writes state to /run/openrc at startup.
+      # An emptyDir makes this writable without extra privileges.
+      - name: run
         emptyDir: {}
