@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: owntone
+  namespace: app-teddycloud
+  labels:
+    app: owntone
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: owntone
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: owntone
+    spec:
+      serviceAccountName: owntone
+      containers:
+      - name: owntone
+        image: docker.io/owntone/owntone:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: UID
+          value: "1000"
+        - name: GID
+          value: "1000"
+        ports:
+        - name: http
+          containerPort: 3689
+          protocol: TCP
+        - name: websocket
+          containerPort: 3688
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: config
+          mountPath: /etc/owntone/owntone.conf
+          subPath: owntone.conf
+          readOnly: true
+        - name: cache
+          mountPath: /var/cache/owntone
+        - name: media
+          mountPath: /srv/media
+        startupProbe:
+          tcpSocket:
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: owntone-config
+      - name: cache
+        persistentVolumeClaim:
+          claimName: owntone-cache
+      - name: media
+        emptyDir: {}

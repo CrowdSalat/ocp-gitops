@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: owntone-config
+  namespace: app-teddycloud
+data:
+  owntone.conf: |
+    general {
+      uid = "owntone"
+      loglevel = log
+      # Protect the web UI and REST API with a password.
+      # Leave empty to disable authentication (safe when accessed via port-forward only).
+      admin_password = ""
+      websocket_port = 3688
+    }
+
+    library {
+      name = "OwnTone"
+      port = 3689
+      # Spotify-only: no local media files; /srv/media is an emptyDir.
+      directories = { "/srv/media" }
+      db_path = "/var/cache/owntone/songs3.db"
+    }
+
+    spotify {
+      # Spotify credentials are set once via the web UI (OAuth flow).
+      # The access token is then stored in the cache PVC.
+      settings_dir = "/var/cache/owntone/spotify"
+    }
