@@ -16,10 +16,26 @@ spec:
         app: teddycloud-spotify-bridge
     spec:
       serviceAccountName: teddycloud-spotify-bridge
+      initContainers:
+      # Remove stale lockfile from previous pod (crash/force-kill)
+      - name: cleanup-lockfile
+        image: registry.access.redhat.com/ubi9/ubi-micro:9.5
+        command: ["/bin/sh", "-c", "rm -f /config/lockfile"]
+        volumeMounts:
+        - name: go-librespot-state
+          mountPath: /config
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
       containers:
       # ── Main bridge (Quarkus) ────────────────────────────────────────────────
       - name: teddycloud-spotify-bridge
-        image: docker.io/crowdsalat/teddycloud-spotify-bridge:1.0.0-SNAPSHOT
+        image: docker.io/crowdsalat/teddycloud-spotify-bridge:1.0.1-SNAPSHOT
         imagePullPolicy: Always
         ports:
         - name: http
