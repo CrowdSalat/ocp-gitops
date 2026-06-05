@@ -66,14 +66,14 @@ spec:
           value: "0.0.0.0:11434"
         # Tune to available vCPUs on the node; Ollama defaults to all detected cores
         - name: OLLAMA_NUM_THREADS
-          value: "4"
+          value: "6"
         resources:
           requests:
             cpu: "2"
             memory: 8Gi
           limits:
             cpu: "8"
-            memory: 20Gi
+            memory: 64Gi
         volumeMounts:
         - name: models
           mountPath: /root/.ollama
