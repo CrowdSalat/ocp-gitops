@@ -73,7 +73,7 @@ spec:
             memory: 8Gi
           limits:
             cpu: "8"
-            memory: 16Gi
+            memory: 20Gi
         volumeMounts:
         - name: models
           mountPath: /root/.ollama
