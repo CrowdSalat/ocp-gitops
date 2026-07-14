@@ -14,10 +14,7 @@ spec:
       labels:
         app: couchdb
     spec:
-      securityContext:
-        # Crucial for OpenShift: forces the LVM volume to belong to root group 0,
-        # which satisfies OpenShift's default non-root restricted/restricted-v2 SCC.
-        fsGroup: 0
+      serviceAccountName: couchdb
       containers:
         - name: couchdb
           image: apache/couchdb:3.4.2-ubi
