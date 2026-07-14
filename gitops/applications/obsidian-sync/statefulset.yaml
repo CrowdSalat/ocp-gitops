@@ -17,7 +17,7 @@ spec:
       serviceAccountName: couchdb
       containers:
         - name: couchdb
-          image: apache/couchdb:3.4.2-ubi
+          image: apache/couchdb:3.5.2
           ports:
             - containerPort: 5984
               name: couchdb
