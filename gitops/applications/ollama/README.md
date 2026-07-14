@@ -86,6 +86,20 @@ RAM needed ≈ (Parameters × bits ÷ 8) + ~15% overhead (KV-cache, runtime)
 | 32B | 20 GB | ~23 GB |
 | 70B | 43 GB | ~50 GB |
 
+### Mixture of Experts (MoE)
+
+Some models are labeled with two parameter counts, e.g. `30b-a3b`. This is a **Mixture of Experts** architecture — 30B total parameters, 3B active per token.
+
+Instead of one large network that runs fully on every token, a MoE model contains many smaller sub-networks called **experts**. A lightweight router decides which handful of experts to activate for each token — the rest sit idle in RAM.
+
+```
+Dense 7B:   all 7B params computed every token  →  slow but simple
+MoE 30b-a3b: 30B params in RAM, 3B computed per token  →  fast like 3B, smart like 30B
+```
+
+The catch: **all experts must be loaded into RAM** upfront, because the router can pick any of them at any time. So memory footprint is determined by total parameters, but inference speed is determined by active parameters. For token speed estimation, use the active param count in the formula — not the total.
+
+`qwen3-coder:30b-a3b-q4_K_M` needs ~17 GB in RAM (30B total at Q4) but generates tokens at roughly the speed of a 3B dense model.
 
 ### GPU vs. CPU
 
@@ -114,13 +128,9 @@ The **efficiency factor** (~0.6–0.7) accounts for CPU compute overhead, memory
 
 Estimated token speed for deployed models (Q4_K_M, efficiency 0.65):
 
-| Model | Size | Calculation | ~Tokens/s |
-|---|---|---|---|
-| `qwen2.5:3b` | 2.0 GB | 65 ÷ 2.0 × 0.65 | ~21 tok/s |
-| `gemma3:4b` | 2.6 GB | 65 ÷ 2.6 × 0.65 | ~16 tok/s |
-| `deepseek-r1:7b` | 4.5 GB | 65 ÷ 4.5 × 0.65 | ~9 tok/s |
-| `gemma3:9b` | 5.8 GB | 65 ÷ 5.8 × 0.65 | ~7 tok/s |
-| `qwen2.5:14b` | 9.0 GB | 65 ÷ 9.0 × 0.65 | ~5 tok/s |
-| `deepseek-r1:14b` | 9.0 GB | 65 ÷ 9.0 × 0.65 | ~5 tok/s |
+| Model | RAM used | Active params | Calculation | ~Tokens/s |
+|---|---|---|---|---|
+| `gemma4:e4b` | ~10 GB | 8B (dense) | 65 ÷ 5.0 × 0.65 | ~8 tok/s |
+| `qwen3-coder:30b-a3b-q4_K_M` | ~17 GB | 3B (MoE) | 65 ÷ 1.5 × 0.65 | ~28 tok/s |
 
 These are estimates — actual speed depends on context length, prompt complexity, and system load. Use them for relative comparison and go/no-go decisions, not as guarantees.

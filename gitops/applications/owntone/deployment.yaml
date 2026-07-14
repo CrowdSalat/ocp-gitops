@@ -23,8 +23,8 @@ spec:
       - name: owntone
         image: docker.io/owntone/owntone:latest
         imagePullPolicy: IfNotPresent
-        # Bypass OpenRC (which requires cgroups/dbus/avahi) and start owntone directly.
-        command: ["/usr/sbin/owntone", "-f", "-c", "/etc/owntone/owntone.conf"]
+        # Use the default OpenRC entrypoint which handles dbus/avahi startup
+        # The image will run as root to allow OpenRC to manage services
         env:
         - name: UID
           value: "1000"
@@ -38,12 +38,10 @@ spec:
           containerPort: 3688
           protocol: TCP
         securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 1000
-          runAsGroup: 1000
-          capabilities:
-            drop:
-            - ALL
+          # OpenRC needs to run as root to manage dbus/avahi services
+          # The UID/GID env vars tell owntone what user to drop to after init
+          runAsUser: 0
+          runAsGroup: 0
         volumeMounts:
         - name: config
           mountPath: /etc/owntone/owntone.conf
