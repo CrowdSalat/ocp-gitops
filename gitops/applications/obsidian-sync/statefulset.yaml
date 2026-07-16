@@ -45,7 +45,7 @@ spec:
             - name: config
               mountPath: /opt/couchdb/etc/local.d/99-livesync.ini
               subPath: 99-livesync.ini
-              readOnly: true
+              readOnly: false
           resources:
             limits:
               memory: 2Gi
