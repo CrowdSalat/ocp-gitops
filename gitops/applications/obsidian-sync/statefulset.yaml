@@ -15,6 +15,19 @@ spec:
         app: couchdb
     spec:
       serviceAccountName: couchdb
+      initContainers:
+        - name: copy-config
+          image: apache/couchdb:3.5.2
+          command:
+            - /bin/sh
+            - -c
+            - cp /tmp/configmap/99-livesync.ini /opt/couchdb/etc/local.d/99-livesync.ini
+          volumeMounts:
+            - name: configmap-source
+              mountPath: /tmp/configmap
+              readOnly: true
+            - name: local-d
+              mountPath: /opt/couchdb/etc/local.d
       containers:
         - name: couchdb
           image: apache/couchdb:3.5.2
@@ -42,10 +55,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /opt/couchdb/data
-            - name: config
-              mountPath: /opt/couchdb/etc/local.d/99-livesync.ini
-              subPath: 99-livesync.ini
-              readOnly: false
+            - name: local-d
+              mountPath: /opt/couchdb/etc/local.d
           resources:
             limits:
               memory: 2Gi
@@ -54,9 +65,11 @@ spec:
               memory: 1Gi
               cpu: 500m
       volumes:
-        - name: config
+        - name: configmap-source
           configMap:
             name: couchdb-livesync-config
+        - name: local-d
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data
