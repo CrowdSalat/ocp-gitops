@@ -46,16 +46,20 @@ spec:
                   name: couchdb-creds
                   key: COUCHDB_PASSWORD
           livenessProbe:
-            httpGet:
-              path: /_up
-              port: 5984
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - curl -sf -u ${COUCHDB_USER}:${COUCHDB_PASSWORD} http://127.0.0.1:5984/_up
             initialDelaySeconds: 30
             periodSeconds: 15
             failureThreshold: 5
           readinessProbe:
-            httpGet:
-              path: /_up
-              port: 5984
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - curl -sf -u ${COUCHDB_USER}:${COUCHDB_PASSWORD} http://127.0.0.1:5984/_up
             initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
