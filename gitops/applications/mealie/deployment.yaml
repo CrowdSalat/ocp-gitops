@@ -28,6 +28,16 @@ spec:
         env:
           - name: BASE_URL
             value: 'https://mealie.apps.ocp.jharings.de'
+          - name: MEALIE_USER
+            valueFrom:
+              secretKeyRef:
+                name: mealie-creds
+                key: MEALIE_USER
+          - name: MEALIE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mealie-creds
+                key: MEALIE_PASSWORD
         volumeMounts:
           - name: mealie
             mountPath: /app/data
