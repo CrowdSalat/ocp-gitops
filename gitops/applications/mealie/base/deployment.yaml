@@ -41,6 +41,11 @@ spec:
               secretKeyRef:
                 name: mealie-creds
                 key: OIDC_CLIENT_ID
+          - name: OIDC_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: mealie-creds
+                key: OIDC_CLIENT_SECRET
           - name: OIDC_AUTO_REDIRECT
             value: "false"
           - name: OIDC_PROVIDER_NAME
