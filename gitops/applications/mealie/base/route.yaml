@@ -1,0 +1,17 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: mealie
+  labels:
+    app: mealie
+spec:
+  host: mealie.apps.ocp.jharings.de
+  to:
+    kind: Service
+    name: mealie
+    weight: 100
+  port:
+    targetPort: 9000
+  tls:
+    termination: edge
+  wildcardPolicy: None

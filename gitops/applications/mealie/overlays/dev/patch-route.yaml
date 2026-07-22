@@ -1,0 +1,6 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mealie
+spec:
+  host: mealie-dev.apps.ocp.jharings.de
