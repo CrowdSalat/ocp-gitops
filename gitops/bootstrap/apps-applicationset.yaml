@@ -10,6 +10,9 @@ spec:
       revision: HEAD
       directories:
       - path: gitops/applications/*
+      - path: gitops/applications/mealie
+        exclude: true
+      - path: gitops/applications/mealie/overlays/*
   template:
     metadata:
       name: '{{path.basename}}'
