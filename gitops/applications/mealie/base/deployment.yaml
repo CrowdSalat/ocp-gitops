@@ -27,6 +27,16 @@ spec:
         env:
           - name: BASE_URL
             value: 'https://mealie.apps.ocp.jharings.de'
+          - name: DEFAULT_EMAIL
+            valueFrom:
+              secretKeyRef:
+                name: mealie-creds
+                key: MEALIE_USER
+          - name: DEFAULT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mealie-creds
+                key: MEALIE_PASSWORD
           # OIDC / Zitadel
           - name: OIDC_AUTH_ENABLED
             value: "true"
