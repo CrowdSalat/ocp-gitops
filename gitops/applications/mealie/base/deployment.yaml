@@ -68,6 +68,8 @@ spec:
             value: "email"
           - name: OIDC_NAME_CLAIM
             value: "name"
+          - name: OIDC_ADMIN_GROUP
+            value: "ZITADEL_MEALIE_ADMIN_ROLE"
         volumeMounts:
           - name: mealie
             mountPath: /app/data
