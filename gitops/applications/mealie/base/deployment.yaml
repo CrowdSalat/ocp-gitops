@@ -21,22 +21,12 @@ spec:
         app: mealie
     spec:
       containers:
-      - image: ghcr.io/mealie-recipes/mealie:v3.19.2
+      - image: ghcr.io/mealie-recipes/mealie:v3.20.1
         imagePullPolicy: IfNotPresent
         name: mealie
         env:
           - name: BASE_URL
             value: 'https://mealie.apps.ocp.jharings.de'
-          - name: DEFAULT_EMAIL
-            valueFrom:
-              secretKeyRef:
-                name: mealie-creds
-                key: MEALIE_USER
-          - name: DEFAULT_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: mealie-creds
-                key: MEALIE_PASSWORD
           # OIDC / Zitadel
           - name: OIDC_AUTH_ENABLED
             value: "true"
