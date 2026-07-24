@@ -51,6 +51,9 @@ data:
           "workspace": "~/.openclaw/workspace",
           "model": {
             "primary": "ollama/gemma4:e2b"
+          },
+          "experimental": {
+            "localModelLean": true
           }
         },
         "list": [
