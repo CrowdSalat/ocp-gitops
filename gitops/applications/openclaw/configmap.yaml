@@ -24,8 +24,9 @@ data:
         "mode": "merge",
         "providers": {
           "ollama": {
-            "baseUrl": "http://ollama.app-ollama.svc.cluster.local:11434",
-            "api": "ollama",
+            "baseUrl": "http://ollama.app-ollama.svc.cluster.local:11434/v1",
+            "api": "openai-completions",
+            "injectNumCtxForOpenAICompat": true,
             "request": {
               "allowPrivateNetwork": true
             },
