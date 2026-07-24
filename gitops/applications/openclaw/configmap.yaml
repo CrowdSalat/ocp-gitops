@@ -15,6 +15,7 @@ data:
         "auth": {
           "mode": "token"
         },
+        "trustedProxies": ["10.128.0.0/14"],
         "controlUi": {
           "enabled": true,
           "allowedOrigins": ["https://openclaw.apps.ocp.jharings.de"]
