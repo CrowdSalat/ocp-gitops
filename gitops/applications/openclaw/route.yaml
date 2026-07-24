@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openclaw
+  namespace: app-openclaw
+spec:
+  host: openclaw.apps.ocp.jharings.de
+  to:
+    kind: Service
+    name: openclaw
+    weight: 100
+  port:
+    targetPort: gateway
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
