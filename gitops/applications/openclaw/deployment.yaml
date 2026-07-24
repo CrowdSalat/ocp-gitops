@@ -21,8 +21,6 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
       initContainers:
         - name: init-config
           image: busybox:1.37
