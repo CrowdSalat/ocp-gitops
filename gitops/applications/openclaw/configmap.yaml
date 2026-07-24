@@ -16,7 +16,8 @@ data:
           "mode": "token"
         },
         "controlUi": {
-          "enabled": true
+          "enabled": true,
+          "allowedOrigins": ["https://openclaw.apps.ocp.jharings.de"]
         }
       },
       "models": {
