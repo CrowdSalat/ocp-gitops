@@ -13,7 +13,7 @@ data:
         "bind": "lan",
         "port": 18789,
         "auth": {
-          "password": "${OPENCLAW_GATEWAY_PASSWORD}"
+          "mode": "token"
         },
         "controlUi": {
           "enabled": true,
