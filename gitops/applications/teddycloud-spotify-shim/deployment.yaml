@@ -24,7 +24,7 @@ spec:
       serviceAccountName: teddycloud-spotify-shim
       containers:
       - name: shim
-        image: docker.io/crowdsalat/teddycloud-spotify-radio-shim:latest
+        image: docker.io/crowdsalat/teddycloud-spotify-radio-shim:0.1.0-2-ga462f46
         imagePullPolicy: Always
         ports:
         - name: http
