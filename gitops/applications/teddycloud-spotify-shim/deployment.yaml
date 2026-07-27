@@ -24,14 +24,13 @@ spec:
       serviceAccountName: teddycloud-spotify-shim
       containers:
       - name: shim
-        image: docker.io/crowdsalat/teddycloud-spotify-radio-shim:0.1.0-2-ga462f46
+        image: docker.io/crowdsalat/teddycloud-spotify-radio-shim:0.1.0-3-g72f728c
         imagePullPolicy: Always
         ports:
         - name: http
           containerPort: 8080
           protocol: TCP
         env:
-        # URL of the TeddyCloud instance (cross-namespace cluster-DNS).
         - name: TEDDYCLOUD_URL
           value: "http://teddycloud.app-teddycloud.svc.cluster.local:80"
         - name: LISTEN_ADDR
