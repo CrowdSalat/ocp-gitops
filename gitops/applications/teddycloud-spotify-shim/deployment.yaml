@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teddycloud-spotify-shim
+  namespace: app-teddycloud-spotify-shim
+  labels:
+    app: teddycloud-spotify-shim
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: teddycloud-spotify-shim
+  strategy:
+    # Single replica with PVC — Recreate avoids two pods fighting for the volume.
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: teddycloud-spotify-shim
+      annotations:
+        openshift.io/required-scc: restricted-v2
+    spec:
+      serviceAccountName: teddycloud-spotify-shim
+      containers:
+      - name: shim
+        image: docker.io/crowdsalat/teddycloud-spotify-radio-shim:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        # URL of the TeddyCloud instance (cross-namespace cluster-DNS).
+        - name: TEDDYCLOUD_URL
+          value: "http://teddycloud.app-teddycloud.svc.cluster.local:80"
+        - name: LISTEN_ADDR
+          value: ":8080"
+        - name: LIBRESPOT_CONFIG_DIR
+          value: "/config"
+        - name: LOG_LEVEL
+          value: "info"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        # Liveness: shim process is alive and HTTP server is responding.
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Startup: allow extra time for go-librespot to start and authenticate.
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: teddycloud-spotify-shim-config

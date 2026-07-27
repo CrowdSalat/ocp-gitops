@@ -1,0 +1,17 @@
+# Exposes the shim's /login endpoint for the interactive Spotify OAuth flow.
+# TeddyCloud reaches the shim via the ClusterIP Service (no Route needed for that).
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: teddycloud-spotify-shim
+  namespace: app-teddycloud-spotify-shim
+spec:
+  host: spotify-shim.apps.ocp.jharings.de
+  to:
+    kind: Service
+    name: teddycloud-spotify-shim
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
