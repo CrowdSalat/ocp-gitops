@@ -68,6 +68,11 @@ spec:
               value: /home/node/.openclaw
             - name: NODE_ENV
               value: production
+            # readOnlyRootFilesystem blocks the default $HOME/.cache used by the
+            # SQLite read-only-worker snapshot staging added in 2026.8.1; point it
+            # at the already-writable tmp-volume mount instead.
+            - name: XDG_CACHE_HOME
+              value: /tmp/cache
             - name: OPENCLAW_GATEWAY_TOKEN
               valueFrom:
                 secretKeyRef:
