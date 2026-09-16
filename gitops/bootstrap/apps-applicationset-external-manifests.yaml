@@ -12,7 +12,7 @@ spec:
         targetRevision: main
         path: container/ocp
         namespace: app-teddycloud-spotify-shim
-      - name: booker
+      - name: medi-bucher
         repoURL: https://github.com/CrowdSalat/medi-bucher.git
         targetRevision: main
         path: deploy
