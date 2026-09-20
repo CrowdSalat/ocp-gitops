@@ -6,8 +6,9 @@
 
 - **`gitops/bootstrap/`** — Argo CD bootstrap, ApplicationSets, extra RBAC for the application controller.
 - **`gitops/infra/`** — cluster/platform operators and shared config (cert-manager, External Secrets, MetalLB, Gateway API, LVMS, …).
-- **`gitops/applications/<app>/`** — GitOps-managed apps wired through the ApplicationSet (e.g. TeddyCloud). Only apps whose manifests live **in this repo** go here.
-- **`gitops/bootstrap/apps-applicationset-external-manifests.yaml`** — inline List-generator ApplicationSet for apps whose manifests live in **external repos**. Each external app is a single `elements` entry (`name`, `repoURL`, `targetRevision`, `path`, `namespace`). Adding one = add an element + re-apply this ApplicationSet file (`oc apply`) after push.
+- **`gitops/manifests/<app>/`** — GitOps-managed apps wired through the ApplicationSet (e.g. TeddyCloud). Only apps whose manifests live **in this repo** go here.
+- **`gitops/apps/<name>.yaml`** — one Argo CD `Application` per app whose manifests live in an **external repo**. Applied by the app-of-apps outer Application `gitops/bootstrap/apps-application.yaml`. Adding/removing one = add/remove a YAML file + push.
+- **`gitops/bootstrap/apps-application.yaml`** — the app-of-apps root: a single `Application` whose source is `gitops/apps`. It creates/updates the per-app child `Application`s from that directory (this cluster's Argo CD 3.x no longer supports the pass-through ApplicationSet pattern).
 - **`applications/`** — legacy/sample app manifests; not always on the same ApplicationSet generator path.
 - **`docs/`** — operational notes, runbooks, ADR-style reasoning.
 - **`teddycloud-ocp/`** — container build assets for the TeddyCloud OCP image.

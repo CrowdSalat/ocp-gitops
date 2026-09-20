@@ -44,7 +44,7 @@ The old OpenShift `Route` has been removed intentionally. The web UI (port 8443)
 **Chosen approach:** OpenShift OAuth proxy sidecar — integrates with the built-in OpenShift OAuth server, zero external IdP needed. See [`docs/oauth-proxy.md`](docs/oauth-proxy.md) for the full pattern.
 
 **When ready:**
-1. Add the `oauth-proxy` sidecar to `gitops/applications/teddycloud/deployment.yaml` (proxy on `:8443`, upstream `http://localhost:8080`).
+1. Add the `oauth-proxy` sidecar to `gitops/manifests/teddycloud/deployment.yaml` (proxy on `:8443`, upstream `http://localhost:8080`).
 2. Add a `ServiceAccount` with the OAuth redirect annotation and a `ClusterRoleBinding` for `system:auth-delegator`.
 3. Create a session-secret `ExternalSecret` in `app-teddycloud` (pull from Infisical, do not commit the value).
 4. Update `service.yaml` to expose the proxy port instead of the raw app port.

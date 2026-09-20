@@ -9,10 +9,10 @@ spec:
       repoURL: https://github.com/CrowdSalat/ocp-gitops.git
       revision: HEAD
       directories:
-      - path: gitops/applications/*
-      - path: gitops/applications/mealie
+      - path: gitops/manifests/*
+      - path: gitops/manifests/mealie
         exclude: true
-      - path: gitops/applications/mealie/overlays/*
+      - path: gitops/manifests/mealie/overlays/*
   template:
     metadata:
       name: '{{path.basename}}'

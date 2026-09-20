@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: teddycloud-spotify-shim
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CrowdSalat/teddycloud-spotify-radio-shim.git
+    targetRevision: main
+    path: container/ocp
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app-teddycloud-spotify-shim
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
