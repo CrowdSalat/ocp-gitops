@@ -3,7 +3,7 @@ kind: DevWorkspace
 metadata:
   name: multi-repo
 spec:
-  started: false
+  started: true
   routingClass: che
   template:
     components:
