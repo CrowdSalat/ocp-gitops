@@ -15,5 +15,6 @@ spec:
         cpu: '4'
         memory: 4Gi
     storage:
-      pvcClaimSize: 40Gi
       pvcStrategy: per-workspace
+      perWorkspaceStrategyPvcConfig:
+        claimSize: 40Gi
