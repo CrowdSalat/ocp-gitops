@@ -18,11 +18,9 @@ spec:
         endpoints:
         - name: web-ide
           targetPort: 8080
-          exposure: 2
+          exposure: public
           secure: false
           protocol: http
-          attributes:
-            controller.devfile.io/sidecar-attachable: "false"
     projects:
     - name: ocp-gitops
       clonePath: crowdsalat/ocp-gitops
