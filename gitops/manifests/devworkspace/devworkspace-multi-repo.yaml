@@ -2,8 +2,6 @@ apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:
   name: multi-repo
-  annotations:
-    controller.devfile.io/restricted-access: "true"
 spec:
   started: false
   routingClass: che
