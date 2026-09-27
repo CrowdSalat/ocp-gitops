@@ -21,6 +21,17 @@ spec:
           exposure: public
           secure: false
           protocol: http
+    plugins:
+    - id: che-incubator/che-code/latest
+      componentOverrides:
+      - name: universal-developer-image
+        container:
+          endpoints:
+          - name: web-ide
+            targetPort: 8080
+            exposure: public
+            secure: false
+            protocol: http
     projects:
     - name: ocp-gitops
       clonePath: crowdsalat/ocp-gitops
