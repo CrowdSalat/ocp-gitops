@@ -1,0 +1,14 @@
+schemaVersion: 2.2.2
+metadata:
+  name: ocp-gitops
+  displayName: OCP GitOps IDE
+  description: Online IDE for the CrowdSalat OpenShift GitOps repository
+components:
+- name: universal-developer-image
+  container:
+    image: quay.io/devspaces/udi-rhel9:3.30
+    memoryLimit: 32Gi
+    memoryRequest: 8Gi
+    cpuLimit: 6
+    cpuRequest: 4
+    mountSources: true
