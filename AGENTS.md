@@ -38,6 +38,7 @@ Single-node cluster (no GPU). Avoid workloads or operators that require GPU, NUM
 - **Secrets:** never commit real tokens or kubeconfigs. Use **External Secrets Operator** + Infisical; follow the bootstrap scripts already in `gitops/infra/` as the pattern.
 - **Scripts next to YAML** are intentional — Argo ignores non-YAML files; keep scripts idempotent and safe to re-run.
 - **Docs:** longer reasoning, runbooks, and design notes go in `docs/`; only short inline comments belong in manifests.
+- **Namespaces for Argo-managed resources:** add a `Namespace` manifest with the label `argocd.argoproj.io/managed-by: openshift-gitops` (the GitOps operator then grants the application controller access automatically). If a sync fails with `cannot patch resource <kind> ... in the namespace <ns> ... forbidden`, the label is missing — check the namespace, then commit the fix. Details: `docs/argocd-namespace-permissions.md`.
 
 ## Git commits
 
