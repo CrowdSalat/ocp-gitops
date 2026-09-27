@@ -10,9 +10,7 @@ kind: OperatorGroup
 metadata:
   name: devspaces-operatorgroup
   namespace: openshift-devspaces
-spec:
-  targetNamespaces:
-  - openshift-devspaces
+spec: {}
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
