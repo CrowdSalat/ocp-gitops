@@ -4,6 +4,7 @@ metadata:
   name: openshift-devspaces
   labels:
     openshift.io/cluster-monitoring: "true"
+    argocd.argoproj.io/managed-by: openshift-gitops
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
