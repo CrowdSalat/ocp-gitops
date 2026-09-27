@@ -13,7 +13,7 @@ spec:
         memoryLimit: 32Gi
         memoryRequest: 8Gi
         cpuLimit: "6"
-        cpuRequest: "4"
+        cpuRequest: "1"
         mountSources: true
     projects:
     - name: ocp-gitops
