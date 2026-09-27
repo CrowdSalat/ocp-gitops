@@ -6,7 +6,7 @@ metadata:
 spec:
   devEnvironments:
     defaultEditor: che-incubator/che-code/latest
-    idleTimeoutMinutes: 60
+    secondsOfInactivityBeforeIdling: 3600
     defaultContainerResources:
       requests:
         cpu: 250m
