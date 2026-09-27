@@ -9,7 +9,7 @@ spec:
     components:
     - name: universal-developer-image
       container:
-        image: quay.io/devspaces/udi-rhel9:3.30
+        image: registry.redhat.io/devspaces/udi-rhel9@sha256:184f43b31b4bdc7ace01be27f6e57d5bb7cd9203226b5978f084ea0370f2d6f8
         memoryLimit: 32Gi
         memoryRequest: 8Gi
         cpuLimit: "6"
