@@ -1,0 +1,45 @@
+apiVersion: controller.devfile.io/v1alpha1
+kind: DevWorkspace
+metadata:
+  name: multi-repo
+  annotations:
+    controller.devfile.io/restricted-access: "true"
+spec:
+  started: false
+  routingClass: che
+  template:
+    components:
+    - name: universal-developer-image
+      container:
+        image: quay.io/devspaces/udi-rhel9:3.30
+        memoryLimit: 32Gi
+        memoryRequest: 8Gi
+        cpuLimit: 6
+        cpuRequest: 4
+        mountSources: true
+    projects:
+    - name: ocp-gitops
+      clonePath: crowdsalat/ocp-gitops
+      git:
+        remotes:
+          origin: "https://github.com/CrowdSalat/ocp-gitops.git"
+    - name: medi-bucher
+      clonePath: crowdsalat/medi-bucher
+      git:
+        remotes:
+          origin: "https://github.com/CrowdSalat/medi-bucher.git"
+    - name: teddycloud-spotify-radio-shim
+      clonePath: crowdsalat/teddycloud-spotify-radio-shim
+      git:
+        remotes:
+          origin: "https://github.com/CrowdSalat/teddycloud-spotify-radio-shim.git"
+    - name: workstation-playbook
+      clonePath: crowdsalat/workstation-playbook
+      git:
+        remotes:
+          origin: "https://github.com/CrowdSalat/workstation-playbook.git"
+    - name: homelab
+      clonePath: crowdsalat/homelab
+      git:
+        remotes:
+          origin: "https://github.com/CrowdSalat/homelab.git"
