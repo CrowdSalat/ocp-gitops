@@ -15,6 +15,14 @@ spec:
         cpuLimit: "6"
         cpuRequest: "1"
         mountSources: true
+        endpoints:
+        - name: web-ide
+          targetPort: 8080
+          exposure: 2
+          secure: false
+          protocol: http
+          attributes:
+            controller.devfile.io/sidecar-attachable: "false"
     projects:
     - name: ocp-gitops
       clonePath: crowdsalat/ocp-gitops
