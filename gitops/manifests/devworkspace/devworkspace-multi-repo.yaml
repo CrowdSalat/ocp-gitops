@@ -1,4 +1,4 @@
-apiVersion: controller.devfile.io/v1alpha1
+apiVersion: workspace.devfile.io/v1alpha2
 kind: DevWorkspace
 metadata:
   name: multi-repo
@@ -14,8 +14,8 @@ spec:
         image: quay.io/devspaces/udi-rhel9:3.30
         memoryLimit: 32Gi
         memoryRequest: 8Gi
-        cpuLimit: 6
-        cpuRequest: 4
+        cpuLimit: "6"
+        cpuRequest: "4"
         mountSources: true
     projects:
     - name: ocp-gitops
