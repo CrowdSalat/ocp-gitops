@@ -18,7 +18,7 @@ spec:
         endpoints:
         - name: web-ide
           targetPort: 8080
-          exposure: public
+          exposure: internal
           secure: false
           protocol: http
     plugins:
@@ -29,7 +29,7 @@ spec:
           endpoints:
           - name: web-ide
             targetPort: 8080
-            exposure: public
+            exposure: internal
             secure: false
             protocol: http
     projects:
