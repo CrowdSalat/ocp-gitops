@@ -7,10 +7,6 @@ spec:
   devEnvironments:
     defaultEditor: che-incubator/che-code/latest
     secondsOfInactivityBeforeIdling: 3600
-    defaultComponents:
-    - name: plugin-registry
-      pluginRegistry:
-        openvsxUrl: https://open-vsx.org
     defaultContainerResources:
       requests:
         cpu: 250m

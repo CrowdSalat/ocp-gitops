@@ -38,16 +38,50 @@ components:
 
 `gitops/manifests/devworkspace/devworkspace-multi-repo.yaml` is an Argo-managed
 `DevWorkspace` named `multi-repo` (lands in namespace `app-devworkspace`). It is created
-stopped (`spec.started: false`) and clones ocp-gitops, medi-bucher,
-teddycloud-spotify-radio-shim, workstation-playbook and homelab every time it starts.
+with `spec.started: true` and clones ocp-gitops, medi-bucher,
+teddycloud-spotify-radio-shim and workstation-playbook every time it starts (homelab
+fails — see Gotchas).
 
 To use it:
 - Open the Dashboard and press start on the `multi-repo` workspace (or
   `oc -n app-devworkspace patch dw multi-repo --type=merge -p '{"spec":{"started":true}}'`).
+- The workspace exposes a web IDE endpoint on port 8080 through the shared che-gateway
+  host (`http://workspace<id>-1.apps.ocp.jharings.de/`, path-routed on the dashboard host).
 - Adjust the `projects:` list in the manifest to your taste; repos clone under
   `/projects/crowdsalat/<name>`.
 - Private repos need a one-time personal access token (Dashboard OAuth flow); a raw
   `DevWorkspace` has no token until one is added — keep auto-cloned repos public for now.
+
+### Gotchas (verified on this cluster)
+
+- Do **not** set `controller.devfile.io/restricted-access: "true"` on a GitOps-managed
+  `DevWorkspace`. That annotation is copied onto the `DevWorkspaceRouting`, which makes the
+  devworkspace-operator `mutate-ws-resources` webhook demand that the per-workspace Route
+  be created by the DevWorkspace controller SA. Routing is actually created by the
+  che-gateway controller, so the request is denied and the workspace fails with
+  "Failed to set up networking ... Only the workspace controller can create workspace
+  objects." Dashboard-created workspaces do not set it. It is also immutable once set, so
+  the object must be deleted and recreated (Argo recreates it from Git).
+- Pin the tooling image to the exact digest the operator injects
+  (`registry.redhat.io/devspaces/udi-rhel9@sha256:184f43b3…`); the `quay.io/devspaces/udi-rhel9:3.30`
+  tag does not exist ("manifest unknown").
+- Endpoint `exposure` is a string enum: `public` / `internal` / `none` (not a number). An
+  unquoted `2` is rejected by the DevWorkspace webhook.
+- The web IDE endpoint must be declared explicitly on the container (targetPort 8080);
+  without it the workspace starts but exposes no URL and the tooling container only runs
+  `tail -f /dev/null`.
+- `cpuRequest` is the schedulable quantity, not `cpuLimit`. ~9.75 of the node's 11.5
+  allocatable CPU is already committed by platform + app workloads, so a 4 CPU request
+  never schedules; the manifest uses `cpuRequest: "1"` with `cpuLimit: "6"` to burst.
+- Editing a `DevWorkspace` `template` (devfile) is only picked up on a **stopped** workspace.
+  Stop it, let Argo sync, then start it.
+- `homelab` does not clone: the GitHub repo is private/nonexistent for unauthenticated
+  clones ("Repository not found"). It needs an access token added to the workspace.
+- The in-cluster `plugin-registry` proxies an OpenVSX backend on `localhost:9000` that is
+  not running, so devfile editor plugins (e.g. `che-incubator/che-code/latest`) cannot be
+  fetched and flatten to nothing. Until that backend is restored, the tooling container has
+  no in-browser editor (endpoint returns 503). The shell/repos work regardless.
+
 
 ## Resource budget (single-node reality)
 
