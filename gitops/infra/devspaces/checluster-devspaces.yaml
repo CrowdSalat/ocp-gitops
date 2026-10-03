@@ -27,4 +27,7 @@ spec:
     storage:
       pvcStrategy: per-user
       perUserStrategyPvcConfig:
-        claimSize: 40Gi
+        # The LVMS volume group is 447Gi with well under 50Gi free, and the app
+        # volumes already claim ~126Gi (ollama alone takes 50Gi). 40Gi here
+        # starves every other application volume on the first workspace start.
+        claimSize: 15Gi
