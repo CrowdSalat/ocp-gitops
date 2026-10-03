@@ -1,109 +1,135 @@
 # OpenShift Dev Spaces playground
 
-Online IDE for OpenShift, accessible from any browser — including from the phone.
+Browser IDE on OpenShift, for working on this repository from anywhere — including a phone.
 Installed via the `infra` ApplicationSet (dir `gitops/infra/devspaces` → Application `infra-devspaces`).
 
 ## What gets deployed
 
-- `devspaces` Subscription (OLM, channel `stable`, operator runs in `openshift-devspaces`).
-- `CheCluster` CR: per-workspace PVC (40 Gi), che-code (Code-OSS) as default editor,
-  idling moved from 10 min to 60 min so builds survive a browser being closed,
-  moderate `defaultContainerResources` for any devfile without explicit resource specs.
+- `devspaces` Subscription (OLM, catalog `redhat-operators`, channel `stable`, operator in
+  `openshift-devspaces`).
+- `CheCluster` CR:
+  - che-code (Code-OSS) as default editor.
+  - idling after 60 min so builds survive a closed browser.
+  - `disableContainerBuildCapabilities: true` — nested `podman`/`docker` builds are out of
+    scope, so users are not given the `container-build` SCC (which adds `SETUID`/`SETGID`).
+  - `maxNumberOfRunningWorkspacesPerCluster: 1` — see [Resource budget](#resource-budget-single-node-reality).
+  - `defaultContainerResources` for any devfile without explicit resource specs.
+  - `pvcStrategy: per-user`, 40 Gi per user.
 - Auth = built-in OpenShift OAuth (no Keycloak to run).
 
-## Opening a workspace
+## Workspaces are runtime state, not GitOps content
 
-1. Find the route: `oc get route -n openshift-devspaces devspaces` (or from the Dashboard).
-2. Log in with the OpenShift cluster admin / existing user.
-3. "Create Workspace" from the git repo you want to work on. A `.devfile.yaml` in a repo
-   is picked up automatically; otherwise the UDI (Universal Developer Image) default is used.
+A `DevWorkspace` is **not** committed to this repository. Create one from the Dashboard or
+`chectl`:
 
-For this repo, `.devfile.yaml` at the root pins `quay.io/devspaces/udi-rhel9:3.30` and
-gives the container **32 Gi RAM, 4 CPU request / 6 CPU limit**. Keep a similar block in
-other repos you want the beefy workspace in:
+```shell
+oc get route devspaces -n openshift-devspaces
+```
+
+Then open the URL and log in with your OpenShift account.
+
+This is deliberate. An earlier revision kept a `multi-repo` `DevWorkspace` in
+`gitops/manifests/devworkspace/` with `spec.started: true`. That was wrong for two reasons:
+
+- A workspace is mutable runtime state. Under `selfHeal: true` + `prune: true`, Argo CD
+  fought the DevWorkspace operator over `spec.started`, minting a fresh workspace ID and PVC
+  on every cycle.
+- A workspace was created with `controller.devfile.io/creator: ""` (no owner) and without
+  `controller.devfile.io/restricted-access`, so anyone with edit access to the namespace could
+  drive it. A copy of it was even left running in the production `app-teddycloud` namespace,
+  sharing that namespace with `teddycloud` and its PVCs.
+
+If you ever do want a pre-seeded workspace, put it in a dedicated `<user>-devspaces`
+namespace, set `controller.devfile.io/restricted-access: "true"`, and leave
+`spec.started: false`.
+
+## The devfile in this repository
+
+`.devfile.yaml` at the repository root gives you a beefy workspace when you create one from
+this repo in the Dashboard:
 
 ```yaml
 components:
 - name: universal-developer-image
   container:
-    image: quay.io/devspaces/udi-rhel9:3.30
+    image: registry.redhat.io/devspaces/udi-rhel9@sha256:6399008ef079cda484724c7d5c8a9729c3d1cadf3b70bc65c6ffe94ced588cfc
     memoryLimit: 32Gi
     memoryRequest: 8Gi
-    cpuLimit: 6
-    cpuRequest: 4
+    cpuLimit: "6"
+    cpuRequest: "1"
     mountSources: true
 ```
 
-### Multi-repo workspace (auto-clone)
+Keep a similar block in other repositories you want the large workspace in, but pin the digest
+of the image **your operator version injects** — there is no `quay.io/devspaces/udi-rhel9:3.30`
+tag (that was the bug: "manifest unknown"). To read the current value:
 
-`gitops/manifests/devworkspace/devworkspace-multi-repo.yaml` is an Argo-managed
-`DevWorkspace` named `multi-repo` (lands in namespace `app-devworkspace`). It is created
-with `spec.started: true` and clones ocp-gitops, medi-bucher,
-teddycloud-spotify-radio-shim and workstation-playbook every time it starts (homelab
-fails — see Gotchas).
+```shell
+oc get deploy devspaces-operator -n openshift-devspaces \
+  -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="CHE_DEFAULT_SPEC_DEVENVIRONMENTS_DEFAULTCOMPONENTS")].value}'
+```
 
-To use it:
-- Open the Dashboard and press start on the `multi-repo` workspace (or
-  `oc -n app-devworkspace patch dw multi-repo --type=merge -p '{"spec":{"started":true}}'`).
-- The workspace exposes a web IDE endpoint on port 8080 through the shared che-gateway
-  host (`http://workspace<id>-1.apps.ocp.jharings.de/`, path-routed on the dashboard host).
-- Adjust the `projects:` list in the manifest to your taste; repos clone under
-  `/projects/crowdsalat/<name>`.
-- Private repos need a one-time personal access token (Dashboard OAuth flow); a raw
-  `DevWorkspace` has no token until one is added — keep auto-cloned repos public for now.
+Because the digest is per-operator-version, it drifts when the operator upgrades — see the
+Gotchas.
 
-### Gotchas (verified on this cluster)
+## Access path
 
-- Do **not** set `controller.devfile.io/restricted-access: "true"` on a GitOps-managed
-  `DevWorkspace`. That annotation is copied onto the `DevWorkspaceRouting`, which makes the
-  devworkspace-operator `mutate-ws-resources` webhook demand that the per-workspace Route
-  be created by the DevWorkspace controller SA. Routing is actually created by the
-  che-gateway controller, so the request is denied and the workspace fails with
-  "Failed to set up networking ... Only the workspace controller can create workspace
-  objects." Dashboard-created workspaces do not set it. It is also immutable once set, so
-  the object must be deleted and recreated (Argo recreates it from Git).
-- Pin the tooling image to the exact digest the operator injects
-  (`registry.redhat.io/devspaces/udi-rhel9@sha256:184f43b3…`); the `quay.io/devspaces/udi-rhel9:3.30`
-  tag does not exist ("manifest unknown").
+Workspaces are served **path-based** on the single gateway host, not on per-workspace
+subdomains:
+
+```
+https://devspaces.apps.ocp.jharings.de/workspace<workspace-id>/
+```
+
+The route is TLS `edge` with `insecureEdgeTerminationPolicy: Redirect`, using the shared
+ingress wildcard certificate (`*.apps.ocp.jharings.de`). The che-gateway enforces OpenShift
+authentication on every workspace path and RBAC per namespace; unauthenticated requests to a
+workspace URL get `403`.
+
+## Gotchas (verified on this cluster)
+
+- **The operator upgrades itself.** The Subscription is `channel: stable` with
+  `installPlanApproval: Automatic` and no `startingCSV`, so OLM advances the CSV on a catalog
+  refresh with no change in this repository. It moved `3.30.1 → 3.30.2` unattended, which
+  also changed the injected UDI digest. Expect the digest in `.devfile.yaml` to need a bump.
+- **`cpuRequest` is the schedulable quantity, not `cpuLimit`.** The node has 11.5 CPU
+  allocatable and the platform already commits ~9.7, so a 4-CPU request never schedules. Ask
+  for little, burst against the limit.
+- **The web IDE endpoint must be declared explicitly** if you hand-write a devfile (target
+  port 8080). The operator's default container component does not declare one, so without it
+  the workspace starts, exposes no URL, and the tooling container only runs `tail -f /dev/null`.
 - Endpoint `exposure` is a string enum: `public` / `internal` / `none` (not a number). An
-  unquoted `2` is rejected by the DevWorkspace webhook.
-- The web IDE endpoint must be declared explicitly on the container (targetPort 8080);
-  without it the workspace starts but exposes no URL and the tooling container only runs
-  `tail -f /dev/null`.
-- `cpuRequest` is the schedulable quantity, not `cpuLimit`. ~9.75 of the node's 11.5
-  allocatable CPU is already committed by platform + app workloads, so a 4 CPU request
-  never schedules; the manifest uses `cpuRequest: "1"` with `cpuLimit: "6"` to burst.
-- Editing a `DevWorkspace` `template` (devfile) is only picked up on a **stopped** workspace.
-  Stop it, let Argo sync, then start it.
-- `homelab` does not clone: the GitHub repo is private/nonexistent for unauthenticated
-  clones ("Repository not found"). It needs an access token added to the workspace.
-- The in-cluster `plugin-registry` proxies an OpenVSX backend on `localhost:9000` that is
-  not running, so devfile editor plugins (e.g. `che-incubator/che-code/latest`) cannot be
-  fetched and flatten to nothing. Until that backend is restored, the tooling container has
-  no in-browser editor (endpoint returns 503). The shell/repos work regardless.
-
+  unquoted `2` is rejected by the DevWorkspace webhook. Keep endpoints `internal` — `public`
+  creates a per-workspace Route straight to the container port with no oauth-proxy in front.
+- Editing a running workspace's devfile is only picked up while it is **stopped**. Stop it,
+  let the change land, then start it.
+- **The plugin registry is broken.** The in-cluster `plugin-registry` sidecar is told
+  `START_OPENVSX: "true"` but the OpenVSX backend it expects is not running, so
+  `/plugin-registry/v3/plugins` returns `404` and devfile editor plugins (including
+  `che-incubator/che-code/latest`) flatten to nothing. The shell and repos work; the in-browser
+  editor does not. Unresolved — see the report.
 
 ## Resource budget (single-node reality)
 
-- The host has 6 physical / 12 logical cores. Cluster-wide operators, Argo and OpenShift
-  control plane share those cores, so a workspace at `cpuLimit: 6` already bursts into
-  everything else — keep exactly one dev workspace running at a time.
-- 32 Gi RAM on a 256 Gi box is comfortable; the workspace PVC (40 Gi on LVMS) is the
-  actual long-term storage, so keep `git push` discipline.
-- After hitting the 60 min idle timeout the workspace exits; uncommitted changes live in
-  the PVC (persistent home), so work isn't lost.
+- The host has 6 physical / 12 logical cores. The control plane, Argo CD and the application
+  namespaces together commit roughly 9.7 of the 11.5 allocatable CPU, so a single workspace
+  already dominates the budget. This is why
+  `maxNumberOfRunningWorkspacesPerCluster: 1` is set — it is a guardrail, not a hint.
+- 32 Gi RAM on a 256 Gi box is fine; memory sits around 11% used.
+- A workspace PVC holds the persistent home, so unsaved work survives idling. Keep
+  `git push` discipline regardless.
 
 ## Building & shipping
 
-- "Shipping" = `git commit && push`, Argo does the rest — no container build needed.
-- If you want in-workspace `podman`/`docker` builds (nested containers) later, that
-  requires enabling container build capabilities + workspace SCC changes; deliberately
-  out of scope for now to keep the plumbing simple. Revisit before relying on it.
+- "Shipping" = `git commit && push`, Argo CD does the rest — no container build needed.
+- In-workspace nested container builds are deliberately out of scope; see
+  `disableContainerBuildCapabilities` above.
 
 ## Verification / runbook
 
 - `oc get checluster -n openshift-devspaces` → status phase `Active`.
-- `oc get pods -n openshift-devspaces` → che, dashboard, gateway, plugin registry running.
-- Workspace pods land per user namespace (`oc get dw -A`), not in `openshift-devspaces`.
-- Newsletter check: embedded plugin registry is deprecated → an on-prem Open VSX registry
-  will become a follow-up; fine for the playground.
+- `oc get pods -n openshift-devspaces` → operator, devspaces (che-server), dashboard, gateway
+  and plugin-registry running.
+- Workspace pods land in the **user's** namespace (`oc get dw -A`), normally
+  `<username>-devspaces` — auto-provisioned on first login. They are never placed in an
+  application namespace.

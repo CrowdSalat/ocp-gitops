@@ -7,6 +7,16 @@ spec:
   devEnvironments:
     defaultEditor: che-incubator/che-code/latest
     secondsOfInactivityBeforeIdling: 3600
+
+    # Nested container builds are out of scope (see docs/devspaces.md). Without this the
+    # operator hands users the `container-build` SCC, which adds SETUID/SETGID.
+    disableContainerBuildCapabilities: true
+
+    # Single-node host: node CPU requests sit around 85% once the platform is running.
+    # One running workspace cluster-wide keeps a browser IDE from starving Argo CD and
+    # the application namespaces.
+    maxNumberOfRunningWorkspacesPerCluster: 1
+
     defaultContainerResources:
       requests:
         cpu: 250m
@@ -15,6 +25,6 @@ spec:
         cpu: '4'
         memory: 4Gi
     storage:
-      pvcStrategy: per-workspace
-      perWorkspaceStrategyPvcConfig:
+      pvcStrategy: per-user
+      perUserStrategyPvcConfig:
         claimSize: 40Gi

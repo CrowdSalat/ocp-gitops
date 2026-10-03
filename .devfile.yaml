@@ -6,9 +6,16 @@ metadata:
 components:
 - name: universal-developer-image
   container:
-    image: quay.io/devspaces/udi-rhel9:3.30
+    # Digest tracks the image the Dev Spaces operator injects for the installed
+    # version (3.30.2). Bump it when the operator upgrades; `quay.io/devspaces/udi-rhel9`
+    # has no `3.30` tag. See `oc get deploy devspaces-operator -n openshift-devspaces
+    # -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="CHE_DEFAULT_SPEC_DEVENVIRONMENTS_DEFAULTCOMPONENTS")].value}'`
+    image: registry.redhat.io/devspaces/udi-rhel9@sha256:6399008ef079cda484724c7d5c8a9729c3d1cadf3b70bc65c6ffe94ced588cfc
     memoryLimit: 32Gi
     memoryRequest: 8Gi
-    cpuLimit: 6
-    cpuRequest: 4
+    cpuLimit: "6"
+    # `cpuRequest` is the schedulable quantity, not `cpuLimit`. The node has 11.5 CPU
+    # allocatable and the platform already commits ~9.7, so a higher request never
+    # schedules. Keep this low and burst against `cpuLimit` instead.
+    cpuRequest: "1"
     mountSources: true
