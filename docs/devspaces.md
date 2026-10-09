@@ -43,6 +43,44 @@ If you ever do want a pre-seeded workspace, put it in a dedicated `<user>-devspa
 namespace, set `controller.devfile.io/restricted-access: "true"`, and leave
 `spec.started: false`.
 
+## GitHub SSH key in every workspace
+
+`gitops/infra/devspaces/externalsecret-git-ssh-key.yaml` pulls `GH_SSH_KEY_PRIVATE` and
+`GH_SSH_KEY_PUBLIC` from Infisical and mounts them as `~/.ssh/id_ed25519_github` in every
+workspace.
+
+The DevWorkspace Operator only discovers automount Secrets **in the workspace's own
+namespace**, which is exactly the namespace we do not put in Git. So the ExternalSecret
+targets `openshift-devspaces`, and Dev Spaces' own replication engine fans it out: a Secret
+there labelled `app.kubernetes.io/part-of=che.eclipse.org` +
+`app.kubernetes.io/component=workspaces-config` is copied into every `<username>-devspaces`
+namespace, carrying its labels and annotations, and drift in a user namespace is reverted.
+
+The mount itself is four labels/annotations on the generated Secret (set through
+`spec.target.template.metadata`, not on the ExternalSecret):
+
+| Setting | Value | Why |
+|---|---|---|
+| `watch-secret` / `mount-to-devworkspace` | `true` | Both are required. `watch-secret` is what puts the Secret in the operator's informer. |
+| `mount-path` | `/home/user/.ssh` | |
+| `mount-as` | `subpath` | Each key becomes its own file. `file` would replace the whole directory and drop `known_hosts`. |
+| `mount-access-mode` | `"0600"` | The operator defaults to `0640`; OpenSSH rejects any identity file with group or world bits set. |
+| `mount-on-start` | `"true"` | An ESO refresh must not restart a running workspace. |
+
+`id_ed25519_github` is not one of ssh's auto-detected names, so a static `config` key ships
+alongside it pointing `IdentityFile` at the key for `github.com` only. That makes
+`~/.ssh/config` GitOps-managed: it **shadows** anything the user put there on the workspace
+PVC.
+
+Consequences worth knowing before you change any of this:
+
+- **The key goes to every user namespace on the cluster.** That is inherent to fan-out, not
+  to this implementation.
+- **Rotation needs a workspace restart.** `subpath` mounts do not refresh in place.
+- **The key must not have a passphrase.** A passphrase needs the operator's experimental
+  `ssh-add` postStart hook (`config.enableExperimentalFeatures` in the
+  `DevWorkspaceOperatorConfig`) and nothing can prompt for it on a cold start.
+
 ## The devfile in this repository
 
 `.devfile.yaml` at the repository root gives you a beefy workspace when you create one from
@@ -133,3 +171,14 @@ workspace URL get `403`.
 - Workspace pods land in the **user's** namespace (`oc get dw -A`), normally
   `<username>-devspaces` — auto-provisioned on first login. They are never placed in an
   application namespace.
+- SSH key: `oc get externalsecret devspaces-git-ssh-key -n openshift-devspaces` → condition
+  `Ready`. A copy of the Secret must exist in each user namespace, and the one in
+  `openshift-devspaces` must carry the replication and mount labels:
+
+```shell
+oc get secret devspaces-git-ssh-key -A -o custom-columns='NS:.metadata.namespace,PART_OF:.metadata.labels.app\.kubernetes\.io/part-of,MOUNT:.metadata.annotations.controller\.devfile\.io/mount-path'
+```
+
+  Inside a started workspace, `ls -l ~/.ssh/id_ed25519_github` must show `-rw-------` and
+  `ssh -T git@github.com` must not report a permissions error. If it reports
+  `Permissions ... are too open`, the `mount-access-mode` annotation was lost on the way.

@@ -45,3 +45,8 @@ spec:
     remoteRef:
       key: MY_INFISICAL_SECRET_NAME
 ```
+
+Labels and annotations for the **generated Secret** go under `spec.target.template.metadata`,
+not on the ExternalSecret itself. `gitops/infra/devspaces/externalsecret-git-ssh-key.yaml`
+is the worked example: it mounts a GitHub SSH key into every Dev Spaces workspace and uses
+Dev Spaces' own replication to reach the per-user namespaces. See [devspaces.md](devspaces.md).
