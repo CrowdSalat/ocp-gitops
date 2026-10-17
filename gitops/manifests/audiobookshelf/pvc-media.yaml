@@ -1,0 +1,20 @@
+# The media library itself. Audiobookshelf has no built-in default library path
+# — the folders are added in the web UI under Settings -> Libraries / Podcast
+# Folders. Use /media/audiobooks and /media/podcasts.
+#
+# Grow on demand with: oc patch pvc audiobookshelf-media -n app-audiobookshelf
+#   -p '{"spec":{"resources":{"requests":{"storage":"200Gi"}}}}'
+# (lvms-vg1 sets allowVolumeExpansion: true, so the PV grows in place).
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: audiobookshelf-media
+  namespace: app-audiobookshelf
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: lvms-vg1
+  volumeMode: Filesystem

@@ -1,0 +1,15 @@
+# Server configuration (config.json, user accounts, preferences) — must be on
+# fast local disk, never on network storage.
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: audiobookshelf-config
+  namespace: app-audiobookshelf
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+  storageClassName: lvms-vg1
+  volumeMode: Filesystem

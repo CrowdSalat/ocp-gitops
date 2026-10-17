@@ -1,0 +1,103 @@
+# Audiobookshelf on OpenShift, exposed at
+# https://audiobookshelf.apps.ocp.jharings.de/audiobookshelf/
+#
+# ROUTER_BASE_PATH is deliberately left at the upstream default
+# ("/audiobookshelf"). The Nuxt frontend bundle is built with that basepath
+# baked in, so the served HTML always requests /audiobookshelf/_nuxt/... .
+# Overriding it to "/" makes the server serve from / while the HTML still asks
+# for the old prefix, every asset 404s, and the page renders blank. A plain
+# HTTP 200 on / hides this - check the _nuxt assets resolve before trusting it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audiobookshelf
+  namespace: app-audiobookshelf
+  labels:
+    app: audiobookshelf
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: audiobookshelf
+  # Recreate because the PVCs are RWO – the old pod must be gone before the new
+  # one can attach them.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: audiobookshelf
+    spec:
+      containers:
+      - name: audiobookshelf
+        image: ghcr.io/advplyr/audiobookshelf:2.37.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        # The upstream image defaults to PORT=80, but restricted-v2 runs the
+        # container under an arbitrary non-root UID. Listening on 8080 instead
+        # avoids needing the NET_BIND_SERVICE capability at all.
+        - name: PORT
+          value: "8080"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: metadata
+          mountPath: /metadata
+        - name: media
+          mountPath: /media
+        # First boot writes config.json and opens the metadata database, so the
+        # HTTP port can stay closed for a while. Transcoding audiobooks is also
+        # CPU heavy on first scan.
+        startupProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: audiobookshelf-config
+      - name: metadata
+        persistentVolumeClaim:
+          claimName: audiobookshelf-metadata
+      - name: media
+        persistentVolumeClaim:
+          claimName: audiobookshelf-media
