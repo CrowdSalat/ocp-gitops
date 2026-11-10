@@ -29,6 +29,25 @@ Dev Spaces keeps working with the operator in `openshift-operators`: it only nee
 cluster-wide CRDs and the all-namespaces controller. Its `DevWorkspaceOperatorConfig` stays
 owned by the `CheCluster` in `openshift-devspaces`.
 
+Both operators were **moved** out of `openshift-devspaces`. The move is not a `kubectl apply`
+away, because of how OLM resolves on this cluster:
+
+- Deleting the Subscription by hand is pointless while Argo manages it — `selfHeal: true`
+  re-creates it within seconds. Change Git first, then let Argo prune.
+- OLM copies every globally-installed CSV into **every** namespace (`status.reason: Copied`).
+  Those copies carry the `olm.operatorNamespace` of the original install, and a new
+  subscription happily resolves to such a stale copy: the Subscription reports
+  `AtLatestKnown` while **no deployment exists**. To get a real install, delete the stale
+  copies and re-create the Subscription.
+- Re-installing the DevWorkspace operator fails with `no endpoints available for service
+  devworkspace-controller-manager-service`: OLM validates existing CRs against the new CRD
+  schema, which needs the *conversion webhook* that only the operator itself serves. Delete
+  the `DevWorkspaceTemplate` CRs first, then install the CSV, then let the Web Terminal
+  operator recreate the templates.
+- The old install leaves a `MutatingWebhookConfiguration` (`controller.devfile.io`) pointing
+  at the previous namespace. The new operator refuses to start with `conflicting webhook
+  definition found on cluster` until that configuration is deleted.
+
 ## Gotchas (verified on this cluster)
 
 - **A pending Manual plan in the target namespace blocks everything.** OLM batches all
@@ -70,7 +89,19 @@ Terminal sessions are runtime state: never commit a `DevWorkspace` for this. The
 
 ## Resource budget
 
-The Web Terminal and DevWorkspace controllers request CPU that this single node has to
-schedule. With the cluster at ~100% *requests*, both stay `Pending` with
-`0/1 nodes are available: 1 Insufficient cpu` — check `oc describe node | grep -A6 'Allocated
-resources'` and free something before blaming the operator.
+The Web Terminal controller (100m) and the DevWorkspace controller (250m) plus its two webhook
+servers (2×100m) need ~550m of CPU *requests*. This node has 11.5 CPU allocatable and runs
+at ~90% requests, so anything that adds an operator stack can push these pods into
+`Pending` with `0/1 nodes are available: 1 Insufficient cpu`.
+
+The RHACM hub was the reason: with `availabilityConfig: High` its components run 2–3
+replicas each and consumed the last ~900m. `gitops/infra/rhacm/multiclusterhub.yaml` now
+pins `availabilityConfig: Basic`, which is the correct setting for a single-node cluster
+anyway and leaves headroom for operators.
+
+Check before blaming the operator:
+
+```shell
+oc describe node | sed -n '/Allocated resources/,/Events/p'
+oc get pods -A --field-selector=status.phase=Pending
+```

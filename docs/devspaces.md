@@ -7,6 +7,10 @@ Installed via the `infra` ApplicationSet (dir `gitops/infra/devspaces` → Appli
 
 - `devspaces` Subscription (OLM, catalog `redhat-operators`, channel `stable`, operator in
   `openshift-devspaces`).
+- The **DevWorkspace Operator** itself is *not* installed here — it is declared in
+  `gitops/infra/devworkspace/` and runs in `openshift-operators` (see
+  [web-terminal.md](web-terminal.md)), shared with the console terminal. Its
+  `DevWorkspaceOperatorConfig` is still owned by the `CheCluster` in this namespace.
 - `CheCluster` CR:
   - che-code (Code-OSS) as default editor.
   - idling after 60 min so builds survive a closed browser.
