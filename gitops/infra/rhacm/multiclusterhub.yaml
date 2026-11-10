@@ -3,4 +3,7 @@ kind: MultiClusterHub
 metadata:
   name: multiclusterhub
   namespace: open-cluster-management
-spec: {}
+spec:
+  # Single-node cluster: HA replicas (2-3 per component) exhaust the CPU request
+  # budget of the node and leave other operators Pending.
+  availabilityConfig: Basic
