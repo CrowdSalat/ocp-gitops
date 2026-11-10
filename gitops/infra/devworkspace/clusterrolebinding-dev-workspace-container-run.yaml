@@ -1,0 +1,20 @@
+# The Dev Spaces operator grants the DevWorkspace controller's ServiceAccount the
+# SCC permissions it needs to create the per-workspace Roles (e.g. `use` on the
+# `container-run` SCC). It binds that grant to the ServiceAccount in the CheCluster
+# namespace (openshift-devspaces) -- see ClusterRoleBinding `dev-workspace-container-run`.
+#
+# The DevWorkspace operator now runs in openshift-operators, so without this binding
+# the controller cannot create those Roles and every Dev Spaces workspace fails with
+# "attempting to grant RBAC permissions not currently held".
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dev-workspace-container-run-devworkspace-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dev-workspace-container-run
+subjects:
+- kind: ServiceAccount
+  name: devworkspace-controller-serviceaccount
+  namespace: openshift-operators
