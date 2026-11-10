@@ -64,13 +64,28 @@ The mount itself is four labels/annotations on the generated Secret (set through
 | `watch-secret` / `mount-to-devworkspace` | `true` | Both are required. `watch-secret` is what puts the Secret in the operator's informer. |
 | `mount-path` | `/home/user/.ssh` | |
 | `mount-as` | `subpath` | Each key becomes its own file. `file` would replace the whole directory and drop `known_hosts`. |
-| `mount-access-mode` | `"0600"` | The operator defaults to `0640`; OpenSSH rejects any identity file with group or world bits set. |
+| `mount-access-mode` | `"0600"` | Intent only: kubelet ORs group-read into Secret-volume files because the workspace pod sets `fsGroup`, so the key lands as `0640` `root:user`. That is harmless — OpenSSH only rejects group/world bits on keys owned by the invoking user, and this file is root-owned. |
 | `mount-on-start` | `"true"` | An ESO refresh must not restart a running workspace. |
 
 `id_ed25519_github` is not one of ssh's auto-detected names, so a static `config` key ships
 alongside it pointing `IdentityFile` at the key for `github.com` only. That makes
 `~/.ssh/config` GitOps-managed: it **shadows** anything the user put there on the workspace
 PVC.
+
+Two OpenSSH details cost real debugging time here:
+
+- **The private key must end with a newline.** OpenSSH parses the last line with
+  `sshbuf_get_line`, which fails on an unterminated line: `Load key ...: invalid format`.
+  Store `GH_SSH_KEY_PRIVATE` in Infisical with a trailing newline; copying the key through a
+  UI or editor often drops it, and the key material itself is fine.
+- **`known_hosts` cannot live in `~/.ssh`.** The operator creates `~/.ssh` as the mount
+  parent, so it is root-owned (`2755 root:user`) and not writable by user. The managed config
+  therefore sets `UserKnownHostsFile /home/user/.ssh_known_hosts` (on the writable home PVC)
+  and `StrictHostKeyChecking accept-new`. Without that, every clone prompts and then prints
+  `Failed to add the host to the list of known hosts`.
+
+Mounting a Secret file read-only is enough for ssh: the operator's `0600` ends up as `0640`
+because kubelet adds group-read for `fsGroup`, and OpenSSH accepts that for root-owned keys.
 
 Consequences worth knowing before you change any of this:
 
@@ -179,6 +194,8 @@ workspace URL get `403`.
 oc get secret devspaces-git-ssh-key -A -o custom-columns='NS:.metadata.namespace,PART_OF:.metadata.labels.app\.kubernetes\.io/part-of,MOUNT:.metadata.annotations.controller\.devfile\.io/mount-path'
 ```
 
-  Inside a started workspace, `ls -l ~/.ssh/id_ed25519_github` must show `-rw-------` and
-  `ssh -T git@github.com` must not report a permissions error. If it reports
-  `Permissions ... are too open`, the `mount-access-mode` annotation was lost on the way.
+  Inside a started workspace, `ls -l ~/.ssh/id_ed25519_github` shows `-rw-r----- root user`
+  (expected: the pod's `fsGroup` adds group-read), and `ssh -T git@github.com` must greet the
+  GitHub account. `invalid format` means the stored key lost its trailing newline;
+  `Permissions ... are too open` means the file is owned by the user rather than root — for
+  example a hand-made copy in the home directory.
