@@ -49,8 +49,8 @@ spec:
           mountPath: /root/.ollama
         resources:
           requests:
-            cpu: "500m"
-            memory: 512Mi
+            cpu: "100m"
+            memory: 256Mi
           limits:
             memory: 2Gi
       containers:
@@ -69,8 +69,8 @@ spec:
           value: "6"
         resources:
           requests:
-            cpu: "2"
-            memory: 8Gi
+            cpu: "500m"
+            memory: 2Gi
           limits:
             cpu: "8"
             memory: 64Gi
