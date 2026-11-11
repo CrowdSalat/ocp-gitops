@@ -6,10 +6,9 @@ metadata:
     openshift.io/cluster-monitoring: "true"
     # KubeVirt's virt-handler and virt-launcher run privileged and need access
     # to /dev/kvm on the node, so this namespace cannot use the restricted
-    # pod security profile.
+    # pod security profile. Only "enforce" is declared: OpenShift's SCC label
+    # sync controller owns the audit/warn labels and resets them otherwise.
     pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/audit: privileged
-    pod-security.kubernetes.io/warn: privileged
     argocd.argoproj.io/managed-by: openshift-gitops
 ---
 apiVersion: operators.coreos.com/v1

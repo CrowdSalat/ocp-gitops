@@ -4,6 +4,6 @@ metadata:
   name: kubevirt-hyperconverged
   namespace: openshift-cnv
 spec:
-  storage:
-    # Only local (TopoLVM) storage is available on this single-node cluster.
-    defaultStorageClass: lvms-vg1
+  # Only local (TopoLVM) storage is available on this single-node cluster.
+  localStorageClassName: lvms-vg1
+  scratchSpaceStorageClass: lvms-vg1
