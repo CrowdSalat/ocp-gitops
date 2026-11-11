@@ -7,3 +7,30 @@ spec:
   # Only local (TopoLVM) storage is available on this single-node cluster.
   localStorageClassName: lvms-vg1
   scratchSpaceStorageClass: lvms-vg1
+  # Restrict the golden OS images to RHEL 9. Without this, CNV imports six
+  # images (rhel8/9/10, centos-stream9/10, fedora) every 12 hours, which
+  # reserves 6x30Gi on the storage pool and bursts ~600m of CPU requests while
+  # the import pods run. The DataImportCron objects themselves are immutable
+  # (CDI's admission webhook rejects spec updates) and are re-created by the
+  # operator, so the list has to be trimmed here.
+  dataImportCronTemplates:
+  - metadata:
+      name: rhel9-image-cron
+      namespace: openshift-virtualization-os-images
+    spec:
+      schedule: "8 2/12 * * *"
+      importsToKeep: 1
+      garbageCollect: Outdated
+      retentionPolicy: None
+      managedDataSource: rhel9
+      template:
+        metadata: {}
+        spec:
+          source:
+            registry:
+              imageStream: rhel9-guest
+              pullMethod: node
+          storage:
+            resources:
+              requests:
+                storage: 30Gi
