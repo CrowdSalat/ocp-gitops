@@ -6,7 +6,9 @@ metadata:
 spec:
   devEnvironments:
     defaultEditor: che-incubator/che-code/latest
-    secondsOfInactivityBeforeIdling: 3600
+
+    secondsOfInactivityBeforeIdling: -1  # Disables the 30m (1800s) idle timeout
+    secondsOfRunBeforeIdling: -1         # Ensures no hard cap on total runtime
 
     # Nested container builds are out of scope (see docs/devspaces.md). Without this the
     # operator hands users the `container-build` SCC, which adds SETUID/SETGID.
